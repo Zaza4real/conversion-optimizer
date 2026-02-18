@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { ScanModule } from './scan/scan.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
+import { RootModule } from './root/root.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RecommendationsModule } from './recommendations/recommendations.module'
     WebhooksModule,
     ScanModule,
     RecommendationsModule,
+    RootModule,
   ],
 })
 export class AppModule {}
