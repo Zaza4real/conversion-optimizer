@@ -27,11 +27,13 @@ async function bootstrap() {
     next();
   });
 
-  // GET / and GET /favicon.ico stay outside /api for the app iframe and browser requests.
+  // GET /, favicon, scan/run, recommendations stay outside /api for app UI.
   app.setGlobalPrefix('api', {
     exclude: [
       { path: '/', method: RequestMethod.GET },
       { path: 'favicon.ico', method: RequestMethod.GET },
+      { path: 'scan/run', method: RequestMethod.GET },
+      { path: 'recommendations', method: RequestMethod.GET },
     ],
   });
 
