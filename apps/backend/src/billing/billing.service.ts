@@ -18,6 +18,11 @@ export interface ChargeStatus {
   price: string;
 }
 
+/**
+ * Billing uses the GraphQL Admin API (appSubscriptionCreate) instead of the legacy REST
+ * recurring_application_charges endpoint. REST returns 422 "application is currently owned
+ * by a Shop" for apps in the Dev Dashboard; GraphQL billing works for all app types.
+ */
 @Injectable()
 export class BillingService {
   constructor(
@@ -26,7 +31,7 @@ export class BillingService {
   ) {}
 
   /**
-   * Create a recurring application charge for the shop and return the URL
+   * Create a recurring app subscription via GraphQL and return the confirmation URL
    * where the merchant must approve the charge.
    */
   async createRecurringCharge(shopDomain: string): Promise<CreateChargeResult> {
@@ -39,24 +44,39 @@ export class BillingService {
       throw new BadRequestException('SHOPIFY_APP_URL is not configured');
     }
     const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}`;
+    const isTest = this.config.get<string>('BILLING_TEST') === 'true';
 
-    const body = {
-      recurring_application_charge: {
-        name: PLAN_NAME,
-        price: PLAN_PRICE,
-        return_url: returnUrl,
-        test: this.config.get<string>('BILLING_TEST') === 'true',
-      },
+    const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
+  appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
+    userErrors { field message }
+    confirmationUrl
+    appSubscription { id }
+  }
+}`;
+    const variables = {
+      name: PLAN_NAME,
+      returnUrl,
+      test: isTest,
+      lineItems: [
+        {
+          plan: {
+            appRecurringPricingDetails: {
+              price: { amount: parseFloat(PLAN_PRICE), currencyCode: 'USD' },
+              interval: 'EVERY_30_DAYS',
+            },
+          },
+        },
+      ],
     };
 
-    const url = `https://${normalized}/admin/api/${SHOPIFY_API_VERSION}/recurring_application_charges.json`;
+    const url = `https://${normalized}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Shopify-Access-Token': accessToken,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ query: mutation, variables }),
     });
 
     if (!res.ok) {
@@ -65,94 +85,90 @@ export class BillingService {
     }
 
     const data = (await res.json()) as {
-      recurring_application_charge?: {
-        id: number;
-        confirmation_url?: string;
-        status?: string;
+      data?: {
+        appSubscriptionCreate?: {
+          userErrors?: { field?: string; message?: string }[];
+          confirmationUrl?: string | null;
+          appSubscription?: { id?: string } | null;
+        };
       };
+      errors?: { message?: string }[];
     };
-    const charge = data.recurring_application_charge;
-    if (!charge?.confirmation_url) {
+
+    const gqlErrors = data.errors?.length ? data.errors : data.data?.appSubscriptionCreate?.userErrors;
+    if (gqlErrors?.length) {
+      const msg = gqlErrors.map((e) => (e as { message?: string }).message ?? JSON.stringify(e)).join('; ');
+      throw new BadRequestException(`Shopify billing API error: ${msg}`);
+    }
+
+    const create = data.data?.appSubscriptionCreate;
+    const confirmationUrl = create?.confirmationUrl ?? null;
+    const appSubscriptionId = create?.appSubscription?.id ?? null;
+
+    if (!confirmationUrl) {
       throw new BadRequestException('Shopify did not return a confirmation URL');
     }
 
+    const chargeId = appSubscriptionId ? this.parseSubscriptionId(appSubscriptionId) : 0;
     return {
-      confirmationUrl: charge.confirmation_url,
-      chargeId: charge.id,
+      confirmationUrl,
+      chargeId,
     };
   }
 
   /**
    * After the merchant approves, Shopify redirects to our return_url with charge_id.
-   * Fetch the charge; if active (or accepted on older API), mark the shop as paid.
-   * Optionally call activate for older API versions.
+   * Confirm the subscription is active via GraphQL and mark the shop as paid.
    */
   async confirmAndActivate(shopDomain: string, chargeId: string): Promise<void> {
     const normalized = this.normalizeDomain(shopDomain);
     const shop = await this.shops.getByDomain(normalized);
     const accessToken = this.shops.getAccessToken(shop);
 
-    const status = await this.getChargeStatus(normalized, accessToken, chargeId);
-    if (status.status === 'active') {
-      await this.shops.setPaidPlan(normalized, String(status.id));
+    const subscriptionId = this.parseSubscriptionId(chargeId);
+    const activeSubscriptions = await this.getActiveSubscriptions(normalized, accessToken);
+    const matched = activeSubscriptions.some((id) => this.parseSubscriptionId(id) === subscriptionId || id === chargeId);
+    if (matched) {
+      await this.shops.setPaidPlan(normalized, String(subscriptionId));
       return;
     }
-    if (status.status === 'pending') {
-      // As of 2021-01 charges auto-activate; call activate for older behavior.
-      await this.activateCharge(normalized, accessToken, chargeId);
-      const after = await this.getChargeStatus(normalized, accessToken, chargeId);
-      if (after.status === 'active') {
-        await this.shops.setPaidPlan(normalized, String(after.id));
-        return;
-      }
-    }
-    throw new BadRequestException(`Charge not active: ${status.status}`);
+    throw new BadRequestException(`Subscription not found or not active: ${chargeId}`);
   }
 
-  private async getChargeStatus(
-    shopDomain: string,
-    accessToken: string,
-    chargeId: string,
-  ): Promise<ChargeStatus> {
-    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/recurring_application_charges/${chargeId}.json`;
-    const res = await fetch(url, {
-      headers: { 'X-Shopify-Access-Token': accessToken },
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new BadRequestException(`Failed to get charge: ${res.status} ${text}`);
-    }
-    const data = (await res.json()) as {
-      recurring_application_charge?: { id: number; status: string; name: string; price: string };
-    };
-    const charge = data.recurring_application_charge;
-    if (!charge) throw new BadRequestException('Charge not found');
-    return {
-      id: charge.id,
-      status: charge.status,
-      name: charge.name,
-      price: charge.price,
-    };
+  private parseSubscriptionId(idOrGid: string): number {
+    const s = String(idOrGid).trim();
+    const match = s.match(/(\d+)$/);
+    return match ? parseInt(match[1], 10) : parseInt(s, 10) || 0;
   }
 
-  private async activateCharge(
-    shopDomain: string,
-    accessToken: string,
-    chargeId: string,
-  ): Promise<void> {
-    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/recurring_application_charges/${chargeId}/activate.json`;
+  private async getActiveSubscriptions(shopDomain: string, accessToken: string): Promise<string[]> {
+    const query = `query {
+  currentAppInstallation {
+    activeSubscriptions { id }
+  }
+}`;
+    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Shopify-Access-Token': accessToken,
       },
-      body: JSON.stringify({ recurring_application_charge: { id: Number(chargeId) } }),
+      body: JSON.stringify({ query }),
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new BadRequestException(`Failed to activate charge: ${res.status} ${text}`);
+      throw new BadRequestException(`Failed to get subscriptions: ${res.status} ${text}`);
     }
+    const data = (await res.json()) as {
+      data?: { currentAppInstallation?: { activeSubscriptions?: { id?: string }[] } };
+      errors?: { message?: string }[];
+    };
+    if (data.errors?.length) {
+      throw new BadRequestException(data.errors.map((e) => e.message).join('; '));
+    }
+    const subs = data.data?.currentAppInstallation?.activeSubscriptions ?? [];
+    return subs.map((s) => s.id ?? '').filter(Boolean);
   }
 
   private normalizeDomain(domain: string): string {

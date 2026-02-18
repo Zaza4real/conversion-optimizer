@@ -27,10 +27,10 @@ export class RootController {
       res.send(
         JSON.stringify({
           clientIdPreview: preview,
-          expectedForDevDashboard: 'f1b3...c81',
-          match: preview === 'f1b3...c81',
+          expectedForDevDashboard: 'f1b3...5c81',
+          match: preview === 'f1b3...5c81',
           message:
-            preview === 'f1b3...c81'
+            preview === 'f1b3...5c81'
               ? 'Railway has the correct app. If you still get 422, delete the shop row and open the app again so OAuth runs with this app.'
               : 'Railway SHOPIFY_API_KEY does NOT match Dev Dashboard. Set Variables to Client ID f1b31cf1dd10ef4c87caf06fcb065c81 and redeploy.',
         }),
