@@ -17,11 +17,12 @@ export class RootController {
     private readonly config: ConfigService,
   ) {}
 
-  /** Serve app favicon (PNG) at /favicon.ico for browser tab icon */
+  /** Serve app favicon (SVG) at /favicon.ico for browser tab icon — crisp at any size */
   @Get('favicon.ico')
   favicon(@Res() res: Response) {
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    const faviconPath = path.join(__dirname, '..', '..', 'public', 'favicon.png');
+    res.setHeader('Content-Type', 'image/svg+xml');
+    const faviconPath = path.join(__dirname, '..', '..', 'public', 'favicon.svg');
     res.sendFile(faviconPath, (err: Error) => {
       if (err) res.status(204).send();
     });
@@ -125,68 +126,62 @@ export class RootController {
       : '<div class="card"><p class="card-text muted">Run scan and View recommendations unlock after you subscribe.</p></div>';
 
     const featuresHtml = `
-    <div class="features">
-      <div class="feature"><span class="feature-icon">📊</span><span class="feature-text"><strong>Store scan</strong> — We analyze your products and theme so you don't have to guess.</span></div>
-      <div class="feature"><span class="feature-icon">🎯</span><span class="feature-text"><strong>Prioritized recommendations</strong> — High, medium, and low severity so you know what to fix first.</span></div>
-      <div class="feature"><span class="feature-icon">✓</span><span class="feature-text"><strong>CRO best practices</strong> — Actionable rationales based on conversion optimization standards.</span></div>
-    </div>`;
+    <ul class="feature-list">
+      <li><strong>Store scan</strong> — Analyzes your products and theme and surfaces gaps.</li>
+      <li><strong>Prioritized list</strong> — High, medium, and low severity so you fix what matters first.</li>
+      <li><strong>Actionable rationales</strong> — Each recommendation explains what to change and why.</li>
+    </ul>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <title>${title}</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 28px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f6f6f7; min-height: 100vh; }
-    .container { max-width: 640px; margin: 0 auto; }
-    .app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e1e3e5; }
-    .app-logo { height: 36px; width: auto; display: block; }
-    .shop-badge { font-size: 13px; color: #6d7175; background: #f1f1f2; padding: 6px 12px; border-radius: 8px; }
-    .hero-block { background: linear-gradient(135deg, #008060 0%, #006e52 100%); color: #fff; padding: 24px; border-radius: 12px; margin-bottom: 24px; }
-    .hero-block h2 { font-size: 18px; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.02em; }
-    .hero-block p { margin: 0; font-size: 14px; opacity: .95; line-height: 1.5; }
-    .features { margin-bottom: 24px; }
-    .feature { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; font-size: 13px; color: #6d7175; }
-    .feature-icon { font-size: 18px; flex-shrink: 0; }
-    .feature-text { line-height: 1.45; }
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 24px; margin-bottom: 20px; border: 1px solid rgba(0,0,0,.04); }
-    .card-highlight { border-left: 4px solid #008060; }
-    .card-title { font-size: 15px; font-weight: 600; margin: 0 0 12px 0; color: #202223; }
-    .card-text { margin: 0 0 16px 0; color: #6d7175; }
+    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.5; color: #202223; background: #fff; min-height: 100vh; }
+    .container { max-width: 560px; margin: 0 auto; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
+    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
+    .shop-badge { font-size: 12px; color: #6d7175; font-weight: 500; }
+    .hero-line { font-size: 15px; color: #202223; margin: 0 0 24px 0; padding-bottom: 24px; border-bottom: 1px solid #e1e3e5; }
+    .hero-line strong { font-weight: 600; }
+    .feature-list { margin: 0 0 28px 0; padding-left: 20px; color: #44474a; font-size: 14px; line-height: 1.6; }
+    .feature-list li { margin-bottom: 8px; }
+    .card { background: #fafbfb; border: 1px solid #e1e3e5; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .card-highlight { border-color: #008060; background: #f9fafb; }
+    .card-title { font-size: 13px; font-weight: 600; margin: 0 0 8px 0; color: #202223; letter-spacing: 0.02em; text-transform: uppercase; }
+    .card-text { margin: 0 0 14px 0; color: #6d7175; font-size: 14px; }
     .card-text.muted { margin: 0; }
-    .btn { display: inline-block; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; text-decoration: none; border: none; cursor: pointer; font-family: inherit; transition: background .15s; }
+    .btn { display: inline-block; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration: none; border: none; cursor: pointer; font-family: inherit; }
     .btn-primary { background: #008060; color: #fff; }
     .btn-primary:hover { background: #006e52; }
-    .btn-secondary { background: #f6f6f7; color: #202223; border: 1px solid #c9cccf; }
-    .btn-secondary:hover { background: #e1e3e5; }
-    .action-list { display: flex; flex-direction: column; gap: 16px; }
+    .btn-secondary { background: #fff; color: #202223; border: 1px solid #c9cccf; }
+    .btn-secondary:hover { background: #f6f6f7; }
+    .action-list { display: flex; flex-direction: column; gap: 12px; }
     .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .action-desc { font-size: 13px; color: #6d7175; }
-    .footer { margin-top: 28px; padding-top: 20px; border-top: 1px solid #e1e3e5; font-size: 13px; color: #6d7175; display: flex; flex-wrap: wrap; gap: 16px; }
+    .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #e1e3e5; font-size: 12px; color: #6d7175; }
     .footer a { color: #008060; text-decoration: none; font-weight: 500; }
     .footer a:hover { text-decoration: underline; }
-    .footer-version { color: #9ca3af; font-weight: normal; }
   </style>
 </head>
 <body>
   <div class="container">
     <header class="app-header">
-      <img src="/logo.png" alt="${title}" class="app-logo">
+      <div class="brand"><img src="/logo.svg" alt="" class="app-logo-icon"><span class="app-wordmark">${title}</span></div>
       <span class="shop-badge">${shop}</span>
     </header>
-    <div class="hero-block">
-      <h2>Turn more visitors into customers</h2>
-      <p>Get clear, prioritized recommendations to improve your store's conversion rate. Scan once, act on what matters most.</p>
-    </div>
+    <p class="hero-line"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store. Run a scan, then work through recommendations by severity.</p>
     ${featuresHtml}
     ${ctaCard}
     ${actionsCard}
     <footer class="footer">
       <a href="${statusUrl}" target="_top">Billing status</a>
-      <span class="footer-version">· App v2</span>
     </footer>
   </div>
 </body>
@@ -194,18 +189,18 @@ export class RootController {
   }
 
   private getBaseStyles(): string {
-    return `*{box-sizing:border-box}body{margin:0;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.55;color:#202223;background:#f6f6f7;min-height:100vh}.container{max-width:680px;margin:0 auto}.page-header{margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #e1e3e5}.page-header-with-logo{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.page-header-with-logo .logo-link{text-decoration:none}.page-header-with-logo .app-logo-small{height:32px;width:auto;display:block}.page-title{font-size:24px;font-weight:600;margin:0 0 6px 0;color:#202223;letter-spacing:-0.02em}.page-subtitle{font-size:13px;color:#6d7175;margin:0}.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:24px;margin-bottom:20px;border:1px solid rgba(0,0,0,.04)}.card-title{font-size:15px;font-weight:600;margin:0 0 12px 0;color:#202223}.card-text{margin:0 0 20px 0;color:#6d7175;font-size:14px}.btn{display:inline-block;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:background .15s}.btn-primary{background:#008060;color:#fff}.btn-primary:hover{background:#006e52}.btn-secondary{background:#f6f6f7;color:#202223;border:1px solid #c9cccf}.btn-secondary:hover{background:#e1e3e5}.btn:disabled{opacity:.6;cursor:not-allowed}.footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:13px;color:#6d7175}.footer a{color:#008060;text-decoration:none;font-weight:500}.footer a:hover{text-decoration:underline}.muted{color:#6d7175}.hero{font-size:15px;color:#202223;margin:0 0 20px 0;line-height:1.6}.steps{margin:0 0 24px 0;padding-left:20px}.steps li{margin-bottom:8px;color:#6d7175}.success-card{background:linear-gradient(180deg,#f0fdf4 0%,#fff 100%);border:1px solid #86efac;padding:20px;border-radius:10px;margin-top:20px}.success-card .title{font-size:15px;font-weight:600;color:#166534;margin:0 0 8px 0}.success-card .detail{font-size:12px;color:#6d7175;font-family:ui-monospace,monospace;word-break:break-all;margin:8px 0 16px 0}.success-card .next{font-size:13px;color:#6d7175;margin:0 0 12px 0}.result-box{background:#f9fafb;border:1px solid #e1e3e5;border-radius:8px;padding:20px;margin-top:20px;font-size:13px;word-break:break-all}.result-box a{color:#008060;text-decoration:none;font-weight:500}.result-box a:hover{text-decoration:underline}.intro-block{margin-bottom:24px;padding:16px 20px;background:#f9fafb;border-radius:8px;border-left:4px solid #008060}.intro-block .intro-title{font-size:13px;font-weight:600;color:#202223;margin:0 0 6px 0}.intro-block .intro-text{font-size:13px;color:#6d7175;margin:0;line-height:1.5}.table-wrap{overflow-x:auto;margin-top:16px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:12px 16px;text-align:left;border-bottom:1px solid #e1e3e5}.table th{font-weight:600;color:#202223;background:#fafbfb;font-size:12px;text-transform:uppercase;letter-spacing:.04em}.table tr:hover{background:#f9fafb}.table td{vertical-align:top}.badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}.badge-high{background:#fef2f2;color:#b91c1c}.badge-medium{background:#fffbeb;color:#b45309}.badge-low{background:#f0fdf4;color:#15803d}.empty{text-align:center;padding:48px 24px;color:#6d7175}.empty .empty-title{font-size:15px;font-weight:600;color:#202223;margin:0 0 8px 0}.empty .empty-text{font-size:14px;margin:0;line-height:1.5}.count-bar{font-size:13px;color:#6d7175;margin-bottom:12px}.count-bar strong{color:#202223}`;
+    return `*{box-sizing:border-box}body{margin:0;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.55;color:#202223;background:#f6f6f7;min-height:100vh}.container{max-width:680px;margin:0 auto}.page-header{margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #e1e3e5}.page-header-with-logo{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.page-header-with-logo .logo-link{text-decoration:none;display:flex;align-items:center;gap:8px}.page-header-with-logo .app-logo-small{height:24px;width:24px;display:block;flex-shrink:0}.page-header-with-logo .app-wordmark-sub{font-size:15px;font-weight:600;color:#202223}.page-title{font-size:24px;font-weight:600;margin:0 0 6px 0;color:#202223;letter-spacing:-0.02em}.page-subtitle{font-size:13px;color:#6d7175;margin:0}.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:24px;margin-bottom:20px;border:1px solid rgba(0,0,0,.04)}.card-title{font-size:15px;font-weight:600;margin:0 0 12px 0;color:#202223}.card-text{margin:0 0 20px 0;color:#6d7175;font-size:14px}.btn{display:inline-block;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:background .15s}.btn-primary{background:#008060;color:#fff}.btn-primary:hover{background:#006e52}.btn-secondary{background:#f6f6f7;color:#202223;border:1px solid #c9cccf}.btn-secondary:hover{background:#e1e3e5}.btn:disabled{opacity:.6;cursor:not-allowed}.footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:13px;color:#6d7175}.footer a{color:#008060;text-decoration:none;font-weight:500}.footer a:hover{text-decoration:underline}.muted{color:#6d7175}.hero{font-size:15px;color:#202223;margin:0 0 20px 0;line-height:1.6}.steps{margin:0 0 24px 0;padding-left:20px}.steps li{margin-bottom:8px;color:#6d7175}.success-card{background:linear-gradient(180deg,#f0fdf4 0%,#fff 100%);border:1px solid #86efac;padding:20px;border-radius:10px;margin-top:20px}.success-card .title{font-size:15px;font-weight:600;color:#166534;margin:0 0 8px 0}.success-card .detail{font-size:12px;color:#6d7175;font-family:ui-monospace,monospace;word-break:break-all;margin:8px 0 16px 0}.success-card .next{font-size:13px;color:#6d7175;margin:0 0 12px 0}.result-box{background:#f9fafb;border:1px solid #e1e3e5;border-radius:8px;padding:20px;margin-top:20px;font-size:13px;word-break:break-all}.result-box a{color:#008060;text-decoration:none;font-weight:500}.result-box a:hover{text-decoration:underline}.intro-block{margin-bottom:24px;padding:16px 20px;background:#f9fafb;border-radius:8px;border-left:4px solid #008060}.intro-block .intro-title{font-size:13px;font-weight:600;color:#202223;margin:0 0 6px 0}.intro-block .intro-text{font-size:13px;color:#6d7175;margin:0;line-height:1.5}.table-wrap{overflow-x:auto;margin-top:16px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:12px 16px;text-align:left;border-bottom:1px solid #e1e3e5}.table th{font-weight:600;color:#202223;background:#fafbfb;font-size:12px;text-transform:uppercase;letter-spacing:.04em}.table tr:hover{background:#f9fafb}.table td{vertical-align:top}.badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}.badge-high{background:#fef2f2;color:#b91c1c}.badge-medium{background:#fffbeb;color:#b45309}.badge-low{background:#f0fdf4;color:#15803d}.empty{text-align:center;padding:48px 24px;color:#6d7175}.empty .empty-title{font-size:15px;font-weight:600;color:#202223;margin:0 0 8px 0}.empty .empty-text{font-size:14px;margin:0;line-height:1.5}.count-bar{font-size:13px;color:#6d7175;margin-bottom:12px}.count-bar strong{color:#202223}`;
   }
 
   private getScanRunPageHtml(shop: string, apiUrl: string, homeUrl: string, recsUrl: string): string {
     const recsEsc = recsUrl.replace(/'/g, "\\'");
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.ico" type="image/x-icon"><title>Run scan — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Run scan — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
 <body>
   <div class="container">
     <header class="page-header page-header-with-logo">
-      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.png" alt="Conversion Optimizer" class="app-logo-small"></a>
+      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.svg" alt="" class="app-logo-small"><span class="app-wordmark-sub">Conversion Optimizer</span></a>
       <div><h1 class="page-title">Store scan</h1><p class="page-subtitle">${shop}</p></div>
     </header>
     <div class="card">
@@ -255,11 +250,11 @@ export class RootController {
   private getRecommendationsPageHtml(shop: string, apiUrl: string, homeUrl: string): string {
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.ico" type="image/x-icon"><title>Recommendations — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Recommendations — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
 <body>
   <div class="container">
     <header class="page-header page-header-with-logo">
-      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.png" alt="Conversion Optimizer" class="app-logo-small"></a>
+      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.svg" alt="" class="app-logo-small"><span class="app-wordmark-sub">Conversion Optimizer</span></a>
       <div><h1 class="page-title">Recommendations</h1><p class="page-subtitle">${shop}</p></div>
     </header>
     <div class="intro-block">
