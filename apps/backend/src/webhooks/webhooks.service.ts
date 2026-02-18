@@ -58,9 +58,37 @@ export class WebhooksService {
         break;
       case 'shop_update':
         break;
+      case 'app_subscriptions_update':
+      case 'app_subscriptions_delete':
+        await this.handleSubscriptionUpdate(payload, shopDomain);
+        break;
       default:
         // unknown topic, no-op
         break;
+    }
+  }
+
+  /**
+   * When a subscription is cancelled or updated, clear our billing if the charge is no longer active.
+   * Payload may contain app_subscription with id (GID or numeric) and status.
+   */
+  private async handleSubscriptionUpdate(
+    payload: Record<string, unknown>,
+    shopDomain: string,
+  ): Promise<void> {
+    const sub = payload.app_subscription as Record<string, unknown> | undefined;
+    if (!sub) return;
+    const status = sub.status as string | undefined;
+    if (status !== 'cancelled' && status !== 'expired' && status !== 'frozen') return;
+    // id might be GID (gid://shopify/AppSubscription/123) or numeric
+    const rawId = sub.id ?? (payload as { recurring_application_charge_id?: number }).recurring_application_charge_id;
+    const chargeId = typeof rawId === 'number' ? String(rawId) : typeof rawId === 'string' ? rawId.replace(/^.*\/(\d+)$/, '$1') : null;
+    if (chargeId) {
+      const shop = await this.shops.findByRecurringChargeId(chargeId);
+      if (shop) await this.shops.clearBilling(shop.domain);
+    } else {
+      // Fallback: clear by shop domain if we know this webhook means "no active sub"
+      await this.shops.clearBilling(shopDomain);
     }
   }
 

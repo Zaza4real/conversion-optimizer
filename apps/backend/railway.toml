@@ -1,0 +1,11 @@
+# Railway config for Conversion Optimizer backend (apps/backend)
+# If Railway doesn't use this automatically, set Root Directory to "apps/backend" in the dashboard.
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "npm run start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

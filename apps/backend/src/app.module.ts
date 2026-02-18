@@ -10,6 +10,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { ScanModule } from './scan/scan.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { RootModule } from './root/root.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { RootModule } from './root/root.module';
     WebhooksModule,
     ScanModule,
     RecommendationsModule,
+    BillingModule,
     RootModule,
   ],
 })

@@ -7,6 +7,7 @@ import { ScanService } from './scan.service';
 import { ScanController } from './scan.controller';
 import { ShopsModule } from '../shops/shops.module';
 import { ShopifyModule } from '../shopify/shopify.module';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ShopifyModule } from '../shopify/shopify.module';
     BullModule.registerQueue({ name: SCAN_QUEUE }),
     ShopsModule,
     ShopifyModule,
+    BillingModule,
   ],
   controllers: [ScanController],
   providers: [ScanProcessor, ScanService],

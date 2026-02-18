@@ -61,6 +61,39 @@ export class ShopsService {
     }
   }
 
+  /** Mark shop as paid and store the recurring charge id. */
+  async setPaidPlan(domain: string, recurringChargeId: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (shop) {
+      shop.plan = 'paid';
+      shop.recurringChargeId = recurringChargeId;
+      shop.updatedAt = new Date();
+      await this.shopRepo.save(shop);
+    }
+  }
+
+  /** Clear billing when subscription is cancelled. */
+  async clearBilling(domain: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (shop) {
+      shop.plan = 'starter';
+      shop.recurringChargeId = null;
+      shop.updatedAt = new Date();
+      await this.shopRepo.save(shop);
+    }
+  }
+
+  /** True if shop has an active paid subscription. */
+  hasPaidPlan(shop: Shop): boolean {
+    return shop.plan === 'paid' && shop.recurringChargeId != null;
+  }
+
+  async findByRecurringChargeId(chargeId: string): Promise<Shop | null> {
+    return this.shopRepo.findOne({
+      where: { recurringChargeId: String(chargeId) },
+    });
+  }
+
   private normalizeDomain(domain: string): string {
     const d = domain.toLowerCase().trim();
     return d.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0];

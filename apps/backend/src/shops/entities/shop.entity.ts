@@ -26,6 +26,9 @@ export class Shop {
   @Column({ type: 'text', default: 'starter' })
   plan: string;
 
+  @Column({ type: 'text', name: 'recurring_charge_id', nullable: true })
+  recurringChargeId: string | null;
+
   @CreateDateColumn({ name: 'installed_at' })
   installedAt: Date;
 
