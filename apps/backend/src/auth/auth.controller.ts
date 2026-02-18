@@ -125,12 +125,17 @@ export class AuthController {
       res.status(400).send('Missing shop parameter');
       return;
     }
+    const appUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const clientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+    if (!appUrl || !clientId) {
+      res.status(503).send('App configuration incomplete. Set SHOPIFY_APP_URL and SHOPIFY_API_KEY.');
+      return;
+    }
     const shopNorm = this.normalizeShop(shop);
-    const redirectUri = this.config.get<string>('SHOPIFY_APP_URL')!.replace(/\/$/, '') + '/api/auth/callback';
+    const redirectUri = `${appUrl}/api/auth/callback`;
     const scopes = this.config.get<string>('SHOPIFY_SCOPES') || 'read_products,read_orders,read_themes';
-    const clientId = this.config.get<string>('SHOPIFY_API_KEY');
     const state = this.auth.generateState(shopNorm);
-    const url = `https://${shopNorm}/admin/oauth/authorize?client_id=${encodeURIComponent(clientId!)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+    const url = `https://${shopNorm}/admin/oauth/authorize?client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
     res.redirect(url);
   }
 
@@ -158,7 +163,10 @@ export class AuthController {
     }
     const { access_token, scope } = await this.auth.exchangeCode(shopNorm, code);
     await this.auth.saveShopAndToken(shopNorm, access_token, scope);
-    const redirectToApp = `https://${shopNorm}/admin/apps/${this.config.get<string>('SHOPIFY_API_KEY')}`;
+    const apiKey = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+    const redirectToApp = apiKey
+      ? `https://${shopNorm}/admin/apps/${apiKey}`
+      : `${this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? ''}/?shop=${encodeURIComponent(shopNorm)}`;
     res.redirect(redirectToApp);
   }
 
