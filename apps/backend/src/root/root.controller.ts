@@ -59,23 +59,33 @@ export class RootController {
     const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${encodeURIComponent(normalized)}`;
     const hasPlan = this.shops.hasPaidPlan(existing);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(this.getAppHomeHtml(normalized, subscribeUrl, hasPlan));
+    res.send(this.getAppHomeHtml(normalized, subscribeUrl, hasPlan, baseUrl));
   }
 
-  private getAppHomeHtml(shop: string, subscribeUrl: string, hasPlan: boolean): string {
+  private getAppHomeHtml(shop: string, subscribeUrl: string, hasPlan: boolean, baseUrl: string): string {
     const title = 'Conversion Optimizer';
-    // target="_top" so billing redirect opens in top window (Shopify's billing page sets X-Frame-Options: deny and cannot load in iframe)
     const cta = hasPlan
       ? '<p><a href="' + subscribeUrl + '" target="_top">Manage billing</a></p>'
       : '<p><strong><a href="' + subscribeUrl + '" target="_top">Subscribe for $19/month</a></strong> to run scans and get recommendations.</p>';
     const statusUrl = subscribeUrl.replace('/billing/subscribe', '/billing/status');
+    const shopEnc = encodeURIComponent(shop);
+    const scanUrl = `${baseUrl}/api/scan/${shopEnc}`;
+    const recsUrl = `${baseUrl}/api/recommendations/${shopEnc}?limit=10`;
+    const testSection = hasPlan
+      ? `<h2>Test</h2>
+<ul>
+  <li><form action="${scanUrl}" method="post" target="_top" style="display:inline;"><button type="submit">Run scan</button></form> — enqueues a CRO scan for your store</li>
+  <li><a href="${recsUrl}" target="_top">View recommendations</a> — returns JSON (or open in new tab)</li>
+</ul>`
+      : '<p><small>Subscribe above to unlock <strong>Run scan</strong> and <strong>View recommendations</strong>.</small></p>';
     return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em;} a{color:#008060;}</style></head>
+<html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em;} a{color:#008060;} code{background:#eee;padding:2px 6px;}</style></head>
 <body>
 <h1>${title}</h1>
 <p>Store: <strong>${shop}</strong></p>
 ${cta}
-<p><small>API: <a href="${statusUrl}" target="_top">billing status</a> · scan and recommendations require a subscription.</small></p>
+<p><small>API: <a href="${statusUrl}" target="_top">billing status</a></small></p>
+${testSection}
 </body></html>`;
   }
 
