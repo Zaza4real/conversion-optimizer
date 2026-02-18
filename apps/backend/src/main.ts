@@ -10,11 +10,20 @@ async function bootstrap() {
   });
 
   // Allow this app to be embedded in Shopify Admin iframe (fixes "refused to connect").
-  app.use((_req: Request, res: Response, next: NextFunction) => {
-    res.setHeader(
-      'Content-Security-Policy',
-      "frame-ancestors https://admin.shopify.com https://*.admin.shopify.com https://*.myshopify.com 'self';",
-    );
+  // Shopify requires frame-ancestors to include the shop domain and admin.shopify.com.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const shop = (req.query?.shop as string)?.trim();
+    const shopHost = shop && /\.myshopify\.com$/i.test(shop)
+      ? `https://${shop.replace(/^https?:\/\//, '').split('/')[0]}`
+      : null;
+    const ancestors = [
+      'https://admin.shopify.com',
+      'https://*.admin.shopify.com',
+      "https://*.myshopify.com",
+      "'self'",
+      ...(shopHost ? [shopHost] : []),
+    ].join(' ');
+    res.setHeader('Content-Security-Policy', `frame-ancestors ${ancestors};`);
     next();
   });
 
