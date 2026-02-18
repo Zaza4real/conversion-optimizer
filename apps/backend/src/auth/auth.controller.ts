@@ -1,0 +1,64 @@
+import { Controller, Get, Query, Res } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
+import { AuthService } from './auth.service';
+
+@Controller('auth')
+export class AuthController {
+  constructor(
+    private readonly auth: AuthService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /**
+   * GET /api/auth?shop=store.myshopify.com
+   * Redirects to Shopify OAuth. If already installed, can redirect to app instead.
+   */
+  @Get()
+  async install(@Query('shop') shop: string, @Res() res: Response) {
+    if (!shop?.trim()) {
+      res.status(400).send('Missing shop parameter');
+      return;
+    }
+    const shopNorm = this.normalizeShop(shop);
+    const redirectUri = this.config.get<string>('SHOPIFY_APP_URL')!.replace(/\/$/, '') + '/api/auth/callback';
+    const scopes = this.config.get<string>('SHOPIFY_SCOPES') || 'read_products,read_orders,read_themes';
+    const clientId = this.config.get<string>('SHOPIFY_API_KEY');
+    const state = this.auth.generateState(shopNorm);
+    const url = `https://${shopNorm}/admin/oauth/authorize?client_id=${encodeURIComponent(clientId!)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+    res.redirect(url);
+  }
+
+  /**
+   * GET /api/auth/callback?code=...&shop=...&state=...&hmac=...
+   * Exchanges code for access token and stores shop. HMAC verified per Shopify docs.
+   */
+  @Get('callback')
+  async callback(@Query() query: Record<string, string>, @Res() res: Response) {
+    const code = query.code;
+    const shop = query.shop;
+    const state = query.state;
+    if (!code || !shop?.trim()) {
+      res.status(400).send('Missing code or shop');
+      return;
+    }
+    if (!this.auth.verifyCallbackHmac(query)) {
+      res.status(400).send('Invalid HMAC');
+      return;
+    }
+    const shopNorm = this.normalizeShop(shop);
+    if (!this.auth.consumeState(state, shopNorm)) {
+      res.status(400).send('Invalid or expired state');
+      return;
+    }
+    const { access_token, scope } = await this.auth.exchangeCode(shopNorm, code);
+    await this.auth.saveShopAndToken(shopNorm, access_token, scope);
+    const redirectToApp = `https://${shopNorm}/admin/apps/${this.config.get<string>('SHOPIFY_API_KEY')}`;
+    res.redirect(redirectToApp);
+  }
+
+  private normalizeShop(shop: string): string {
+    const s = shop.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0];
+    return s.includes('.myshopify.com') ? s : `${s}.myshopify.com`;
+  }
+}

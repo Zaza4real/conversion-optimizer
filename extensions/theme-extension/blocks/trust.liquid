@@ -1,0 +1,18 @@
+{% comment %}
+  Conversion Optimizer: Trust / Guarantee block.
+  Merchant adds this block to product or page template. Settings control copy.
+{% endcomment %}
+<div class="co-block co-trust" {{ block.shopify_attributes }}>
+  {% if block.settings.heading != blank %}
+    <h3 class="co-trust__heading">{{ block.settings.heading }}</h3>
+  {% endif %}
+  {% if block.settings.body != blank %}
+    <div class="co-trust__body">{{ block.settings.body }}</div>
+  {% endif %}
+</div>
+
+<style>
+  .co-block.co-trust { padding: 1rem 0; }
+  .co-trust__heading { font-size: 1rem; margin: 0 0 0.5rem; font-weight: 600; }
+  .co-trust__body { font-size: 0.9rem; opacity: 0.9; }
+</style>

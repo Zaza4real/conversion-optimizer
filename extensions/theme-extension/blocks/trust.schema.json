@@ -1,0 +1,18 @@
+{
+  "name": "Trust & Guarantee",
+  "type": "trust_guarantee",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Our guarantee"
+    },
+    {
+      "type": "textarea",
+      "id": "body",
+      "label": "Body",
+      "default": "30-day returns. Free shipping over $50."
+    }
+  ]
+}
