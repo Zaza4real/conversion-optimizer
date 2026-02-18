@@ -43,7 +43,7 @@ export class ShopsService {
       domain: normalized,
       accessTokenEnc: encrypted,
       scope: scope ?? null,
-      plan: 'starter',
+      plan: 'free',
       settings: {},
     });
     return this.shopRepo.save(shop);
@@ -61,11 +61,11 @@ export class ShopsService {
     }
   }
 
-  /** Mark shop as paid and store the recurring charge id. */
-  async setPaidPlan(domain: string, recurringChargeId: string): Promise<void> {
+  /** Mark shop as paid and store the recurring charge id and plan tier (starter | growth | pro). */
+  async setPaidPlan(domain: string, recurringChargeId: string, plan: 'starter' | 'growth' | 'pro' = 'growth'): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
-      shop.plan = 'paid';
+      shop.plan = plan;
       shop.recurringChargeId = recurringChargeId;
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
@@ -76,16 +76,25 @@ export class ShopsService {
   async clearBilling(domain: string): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
-      shop.plan = 'starter';
+      shop.plan = 'free';
       shop.recurringChargeId = null;
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
   }
 
-  /** True if shop has an active paid subscription. */
+  /** True if shop has an active paid subscription (any tier). */
   hasPaidPlan(shop: Shop): boolean {
-    return shop.plan === 'paid' && shop.recurringChargeId != null;
+    const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'paid';
+    return paid && shop.recurringChargeId != null;
+  }
+
+  /** Current plan label for display (e.g. "Starter", "Growth", "Pro"). */
+  getPlanLabel(shop: Shop): string {
+    if (shop.plan === 'pro') return 'Pro';
+    if (shop.plan === 'growth' || shop.plan === 'paid') return 'Growth';
+    if (shop.plan === 'starter') return 'Starter';
+    return 'Free';
   }
 
   async findByRecurringChargeId(chargeId: string): Promise<Shop | null> {

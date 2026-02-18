@@ -23,7 +23,7 @@ export class Shop {
   @Column({ type: 'text', nullable: true })
   scope: string | null;
 
-  @Column({ type: 'text', default: 'starter' })
+  @Column({ type: 'text', default: 'free' })
   plan: string;
 
   @Column({ type: 'text', name: 'recurring_charge_id', nullable: true })

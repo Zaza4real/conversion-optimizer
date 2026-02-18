@@ -3,8 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { ShopsService } from '../shops/shops.service';
 
 const SHOPIFY_API_VERSION = '2024-01';
-const PLAN_PRICE = '19.00';
-const PLAN_NAME = 'Conversion Optimizer — $19/month';
+
+export const PLANS = {
+  starter: { price: 9, name: 'Conversion Optimizer — Starter $9/month', key: 'starter' },
+  growth: { price: 19, name: 'Conversion Optimizer — Growth $19/month', key: 'growth' },
+  pro: { price: 29, name: 'Conversion Optimizer — Pro $29/month', key: 'pro' },
+} as const;
+
+export type PlanKey = keyof typeof PLANS;
 
 export interface CreateChargeResult {
   confirmationUrl: string;
@@ -32,18 +38,23 @@ export class BillingService {
 
   /**
    * Create a recurring app subscription via GraphQL and return the confirmation URL
-   * where the merchant must approve the charge.
+   * where the merchant must approve the charge. planKey must be one of: starter, growth, pro.
    */
-  async createRecurringCharge(shopDomain: string): Promise<CreateChargeResult> {
+  async createRecurringCharge(shopDomain: string, planKey: PlanKey = 'growth'): Promise<CreateChargeResult> {
     const normalized = this.normalizeDomain(shopDomain);
     const shop = await this.shops.getByDomain(normalized);
     const accessToken = this.shops.getAccessToken(shop);
+
+    const planConfig = PLANS[planKey];
+    if (!planConfig) {
+      throw new BadRequestException(`Invalid plan: ${planKey}`);
+    }
 
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     if (!baseUrl) {
       throw new BadRequestException('SHOPIFY_APP_URL is not configured');
     }
-    const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}`;
+    const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}&plan=${encodeURIComponent(planKey)}`;
     const isTest = this.config.get<string>('BILLING_TEST') === 'true';
 
     const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
@@ -54,14 +65,14 @@ export class BillingService {
   }
 }`;
     const variables = {
-      name: PLAN_NAME,
+      name: planConfig.name,
       returnUrl,
       test: isTest,
       lineItems: [
         {
           plan: {
             appRecurringPricingDetails: {
-              price: { amount: parseFloat(PLAN_PRICE), currencyCode: 'USD' },
+              price: { amount: planConfig.price, currencyCode: 'USD' },
               interval: 'EVERY_30_DAYS',
             },
           },
@@ -117,10 +128,10 @@ export class BillingService {
   }
 
   /**
-   * After the merchant approves, Shopify redirects to our return_url with charge_id.
-   * Confirm the subscription is active via GraphQL and mark the shop as paid.
+   * After the merchant approves, Shopify redirects to our return_url with charge_id and plan.
+   * Confirm the subscription is active via GraphQL and mark the shop as paid with the plan tier.
    */
-  async confirmAndActivate(shopDomain: string, chargeId: string): Promise<void> {
+  async confirmAndActivate(shopDomain: string, chargeId: string, planKey: PlanKey = 'growth'): Promise<void> {
     const normalized = this.normalizeDomain(shopDomain);
     const shop = await this.shops.getByDomain(normalized);
     const accessToken = this.shops.getAccessToken(shop);
@@ -129,7 +140,7 @@ export class BillingService {
     const activeSubscriptions = await this.getActiveSubscriptions(normalized, accessToken);
     const matched = activeSubscriptions.some((id) => this.parseSubscriptionId(id) === subscriptionId || id === chargeId);
     if (matched) {
-      await this.shops.setPaidPlan(normalized, String(subscriptionId));
+      await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey);
       return;
     }
     throw new BadRequestException(`Subscription not found or not active: ${chargeId}`);

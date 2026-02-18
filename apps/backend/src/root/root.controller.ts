@@ -103,23 +103,30 @@ export class RootController {
       return;
     }
 
-    const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${encodeURIComponent(normalized)}`;
     const hasPlan = this.shops.hasPaidPlan(existing);
+    const currentPlanLabel = this.shops.getPlanLabel(existing);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.send(this.getAppHomeHtml(normalized, subscribeUrl, hasPlan, baseUrl));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl));
   }
 
-  private getAppHomeHtml(shop: string, subscribeUrl: string, hasPlan: boolean, baseUrl: string): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string): string {
     const title = 'Conversion Optimizer';
-    const statusUrl = subscribeUrl.replace('/billing/subscribe', '/billing/status');
     const shopEnc = encodeURIComponent(shop);
+    const statusUrl = `${baseUrl}/api/billing/status?shop=${shopEnc}`;
     const scanRunUrl = `${baseUrl}/scan/run?shop=${shopEnc}`;
     const recsPageUrl = `${baseUrl}/recommendations?shop=${shopEnc}`;
+    const subscribeBase = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}`;
+
+    const plansDisplay = [
+      { key: 'starter', name: 'Starter', price: 9, desc: 'Store scan, prioritized recommendations, filter by severity, export CSV.' },
+      { key: 'growth', name: 'Growth', price: 19, desc: 'Everything in Starter. Best for growing stores.', popular: true },
+      { key: 'pro', name: 'Pro', price: 29, desc: 'Everything in Growth. For teams and high-volume stores.' },
+    ];
 
     const ctaCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your store is on the <strong>$19/month</strong> plan. You have full access to scans and recommendations.</p><a href="${subscribeUrl}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
-      : `<div class="card card-highlight"><h2 class="card-title">Get started</h2><p class="card-text">Subscribe once to unlock store scans and prioritized CRO recommendations. One plan, no per-scan fees.</p><a href="${subscribeUrl}" target="_top" class="btn btn-primary">Subscribe — $19/month</a></div>`;
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${currentPlanLabel}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
+      : `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text" style="margin-bottom:16px;">Choose a plan. All include store scan, recommendations, and CSV export.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn ${p.popular ? 'btn-primary' : 'btn-secondary'}">Subscribe</a></div>`).join('')}</div></div>`;
 
     const actionsCard = hasPlan
       ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary">Run scan</a><span class="action-desc">Analyze your store and generate CRO recommendations</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-secondary">View recommendations</a><span class="action-desc">See your CRO recommendations in a clear list</span></div></div></div>`
@@ -162,6 +169,14 @@ export class RootController {
     .btn-primary:hover { background: #006e52; }
     .btn-secondary { background: #fff; color: #202223; border: 1px solid #c9cccf; }
     .btn-secondary:hover { background: #f6f6f7; }
+    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+    .plan-card { background: #fff; border: 1px solid #e1e3e5; border-radius: 8px; padding: 18px; }
+    .plan-card.plan-popular { border-color: #008060; background: #f9fafb; }
+    .plan-name { font-size: 13px; font-weight: 600; color: #202223; margin-bottom: 4px; }
+    .plan-price { font-size: 22px; font-weight: 600; color: #202223; }
+    .plan-period { font-size: 13px; font-weight: 400; color: #6d7175; }
+    .plan-desc { font-size: 12px; color: #6d7175; line-height: 1.4; margin: 10px 0 14px 0; }
+    .plan-card .btn { width: 100%; text-align: center; }
     .action-list { display: flex; flex-direction: column; gap: 12px; }
     .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .action-desc { font-size: 13px; color: #6d7175; }

@@ -34,12 +34,13 @@ export class BillingController {
   }
 
   /**
-   * GET /api/billing/subscribe?shop=example.myshopify.com
-   * Creates a $19/month recurring charge and redirects the merchant to Shopify's confirmation page.
+   * GET /api/billing/subscribe?shop=...&plan=starter|growth|pro
+   * Creates a recurring charge for the chosen plan and redirects to Shopify's confirmation page.
    */
   @Get('subscribe')
   async subscribe(
     @Query('shop') shop: string | undefined,
+    @Query('plan') plan: string | undefined,
     @Res() res: Response,
   ) {
     if (!shop?.trim()) {
@@ -47,19 +48,21 @@ export class BillingController {
       return;
     }
     const normalized = this.normalizeShop(shop.trim());
-    const { confirmationUrl } = await this.billing.createRecurringCharge(normalized);
+    const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
+    const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
     res.redirect(302, confirmationUrl);
   }
 
   /**
-   * GET /api/billing/return?charge_id=123&shop=example.myshopify.com
-   * Shopify redirects here after the merchant approves the charge (REST or GraphQL). We confirm and mark the shop as paid.
+   * GET /api/billing/return?charge_id=...&shop=...&plan=starter|growth|pro
+   * Shopify redirects here after the merchant approves. We confirm and store the plan.
    */
   @Get('return')
   async return(
     @Query('charge_id') chargeId: string | undefined,
     @Query('subscription_id') subscriptionId: string | undefined,
     @Query('shop') shop: string | undefined,
+    @Query('plan') plan: string | undefined,
     @Res() res: Response,
   ) {
     const id = (chargeId ?? subscriptionId)?.trim();
@@ -68,8 +71,9 @@ export class BillingController {
       return;
     }
     const normalizedShop = this.normalizeShop(shop.trim());
+    const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
     try {
-      await this.billing.confirmAndActivate(normalizedShop, id);
+      await this.billing.confirmAndActivate(normalizedShop, id, planKey);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Activation failed';
       res.status(400).send(`Billing activation failed: ${message}`);

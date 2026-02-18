@@ -40,7 +40,7 @@ export class PaidPlanGuard implements CanActivate {
         {
           error: 'Subscription required',
           message:
-            'Upgrade to run scans and view recommendations. Subscribe for $19/month to unlock Conversion Optimizer.',
+            'Upgrade to run scans and view recommendations. Choose a plan from the app home.',
           upgradeUrl: `/api/billing/subscribe?shop=${encodeURIComponent(shop.domain)}`,
         },
         HttpStatus.PAYMENT_REQUIRED,
