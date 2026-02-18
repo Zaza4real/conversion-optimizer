@@ -94,6 +94,13 @@ export class ShopsService {
     });
   }
 
+  /** Remove the shop so the next app load forces fresh OAuth (fixes stale/wrong token). */
+  async deleteByDomain(domain: string): Promise<boolean> {
+    const normalized = this.normalizeDomain(domain);
+    const result = await this.shopRepo.delete({ domain: normalized });
+    return (result.affected ?? 0) > 0;
+  }
+
   private normalizeDomain(domain: string): string {
     const d = domain.toLowerCase().trim();
     return d.replace(/^https?:\/\//, '').replace(/\/$/, '').split('/')[0];
