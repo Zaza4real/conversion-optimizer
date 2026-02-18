@@ -64,16 +64,18 @@ export class RootController {
 
   private getAppHomeHtml(shop: string, subscribeUrl: string, hasPlan: boolean): string {
     const title = 'Conversion Optimizer';
+    // target="_top" so billing redirect opens in top window (Shopify's billing page sets X-Frame-Options: deny and cannot load in iframe)
     const cta = hasPlan
-      ? '<p><a href="' + subscribeUrl + '">Manage billing</a></p>'
-      : '<p><strong><a href="' + subscribeUrl + '">Subscribe for $19/month</a></strong> to run scans and get recommendations.</p>';
+      ? '<p><a href="' + subscribeUrl + '" target="_top">Manage billing</a></p>'
+      : '<p><strong><a href="' + subscribeUrl + '" target="_top">Subscribe for $19/month</a></strong> to run scans and get recommendations.</p>';
+    const statusUrl = subscribeUrl.replace('/billing/subscribe', '/billing/status');
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em;} a{color:#008060;}</style></head>
 <body>
 <h1>${title}</h1>
 <p>Store: <strong>${shop}</strong></p>
 ${cta}
-<p><small>API: <a href="${subscribeUrl.replace('/billing/subscribe', '/billing/status')}">billing status</a> · scan and recommendations require a subscription.</small></p>
+<p><small>API: <a href="${statusUrl}" target="_top">billing status</a> · scan and recommendations require a subscription.</small></p>
 </body></html>`;
   }
 
