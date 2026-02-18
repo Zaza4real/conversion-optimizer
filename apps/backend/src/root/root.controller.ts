@@ -105,6 +105,7 @@ export class RootController {
     const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${encodeURIComponent(normalized)}`;
     const hasPlan = this.shops.hasPaidPlan(existing);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.send(this.getAppHomeHtml(normalized, subscribeUrl, hasPlan, baseUrl));
   }
 
@@ -167,6 +168,7 @@ export class RootController {
     .footer { margin-top: 28px; padding-top: 20px; border-top: 1px solid #e1e3e5; font-size: 13px; color: #6d7175; display: flex; flex-wrap: wrap; gap: 16px; }
     .footer a { color: #008060; text-decoration: none; font-weight: 500; }
     .footer a:hover { text-decoration: underline; }
+    .footer-version { color: #9ca3af; font-weight: normal; }
   </style>
 </head>
 <body>
@@ -184,6 +186,7 @@ export class RootController {
     ${actionsCard}
     <footer class="footer">
       <a href="${statusUrl}" target="_top">Billing status</a>
+      <span class="footer-version">· App v2</span>
     </footer>
   </div>
 </body>
