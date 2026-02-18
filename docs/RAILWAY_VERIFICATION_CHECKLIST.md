@@ -4,6 +4,8 @@ Use this to confirm your **conversion-optimizer-api** service and project are se
 
 **`https://conversion-optimizer-api-production.up.railway.app`** (no trailing slash)
 
+**Repo:** GitHub. Backend deploys from **apps/backend**; ensure the repo is connected in Railway (Settings → Source → Connect Repo) and **Root Directory** is set to **`apps/backend`** so `railway.toml`, `package.json`, and the **public** folder (logo, favicon) are used.
+
 ---
 
 ## 1. Project structure
@@ -80,12 +82,14 @@ After saving variables and redeploying:
    `https://conversion-optimizer-api-production.up.railway.app/`  
    You should see the app (or a redirect). No 502/503.
 
-2. **Debug (app + token):**  
+2. **Logo/favicon:** Open the app in a tab and confirm the tab shows the app favicon, and the app home shows the Conversion Optimizer logo. These are served from **apps/backend/public** (no extra build step; the folder is in the repo).
+
+3. **Debug (app + token):**  
    `https://conversion-optimizer-api-production.up.railway.app/api/auth/debug?shop=YOUR-STORE.myshopify.com`  
    - **clientIdPreview** should match your Dev Dashboard app’s Client ID (e.g. `f1b3...5c81`).
    - If you have a shop installed, **tokenMatchesOurApp** and **tokenAppDeveloperType** help confirm the token is for the right app.
 
-3. **Shopify:** In Dev Dashboard, **App URL** and **Redirect URL** must be:
+4. **Shopify:** In Dev Dashboard, **App URL** and **Redirect URL** must be:
    - App URL: `https://conversion-optimizer-api-production.up.railway.app`
    - Redirect: `https://conversion-optimizer-api-production.up.railway.app/api/auth/callback`
 

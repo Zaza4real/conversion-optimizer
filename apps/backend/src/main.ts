@@ -2,12 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { RequestMethod } from '@nestjs/common';
+import * as path from 'path';
+import * as express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // keep raw body for webhook HMAC
   });
+
+  // Static assets (logo, favicon) — serve before global prefix so /logo.png, /favicon.png work
+  const publicDir = path.join(__dirname, '..', 'public');
+  app.use(express.static(publicDir));
 
   // Allow this app to be embedded in Shopify Admin iframe (fixes "refused to connect").
   // Shopify requires frame-ancestors to include the shop domain and admin.shopify.com.
