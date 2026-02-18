@@ -1,19 +1,43 @@
 import { Controller, Get, Query, Req, Res } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import { ShopsService } from '../shops/shops.service';
 
 /**
  * Handles GET / (Shopify app load in Admin iframe). Excluded from global "api" prefix.
+ * - ?debug=1: return JSON with clientIdPreview so you can verify Railway has the right SHOPIFY_API_KEY.
  * - If shop not installed: serve HTML that redirects the top window to OAuth (break out of iframe).
  * - If shop installed: serve a minimal app home so the iframe shows content (avoids redirect loop).
  */
 @Controller()
 export class RootController {
-  constructor(private readonly shops: ShopsService) {}
+  constructor(
+    private readonly shops: ShopsService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Get()
   async index(@Req() req: Request, @Res() res: Response) {
     const shop = (req.query.shop as string)?.trim();
+
+    if (String(req.query.debug) === '1') {
+      const clientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+      const preview = clientId.length >= 4 ? `${clientId.slice(0, 4)}...${clientId.slice(-4)}` : '(not set)';
+      res.setHeader('Content-Type', 'application/json');
+      res.send(
+        JSON.stringify({
+          clientIdPreview: preview,
+          expectedForDevDashboard: 'f1b3...c81',
+          match: preview === 'f1b3...c81',
+          message:
+            preview === 'f1b3...c81'
+              ? 'Railway has the correct app. If you still get 422, delete the shop row and open the app again so OAuth runs with this app.'
+              : 'Railway SHOPIFY_API_KEY does NOT match Dev Dashboard. Set Variables to Client ID f1b31cf1dd10ef4c87caf06fcb065c81 and redeploy.',
+        }),
+      );
+      return;
+    }
+
     if (!shop) {
       res.status(400).send('Missing shop parameter. Use /api/auth?shop=your-store.myshopify.com');
       return;
@@ -22,7 +46,12 @@ export class RootController {
     const existing = await this.shops.findByDomain(normalized);
     const baseUrl = this.getBaseUrl(req);
 
-    if (!existing) {
+    // Force OAuth when: no shop, shop was uninstalled, or ?reconnect=1 (e.g. after switching to a new app)
+    const forceReauth =
+      !existing ||
+      existing.uninstalledAt != null ||
+      String(req.query.reconnect).toLowerCase() === '1';
+    if (forceReauth) {
       const query = new URLSearchParams(req.query as Record<string, string>).toString();
       const authUrl = `${baseUrl}/api/auth?${query}`;
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
