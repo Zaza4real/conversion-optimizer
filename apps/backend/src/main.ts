@@ -33,13 +33,15 @@ async function bootstrap() {
     next();
   });
 
-  // GET /, favicon, scan/run, recommendations stay outside /api for app UI.
+  // GET /, favicon, scan/run, recommendations, privacy, refund stay outside /api for app UI and policies.
   app.setGlobalPrefix('api', {
     exclude: [
       { path: '/', method: RequestMethod.GET },
       { path: 'favicon.ico', method: RequestMethod.GET },
       { path: 'scan/run', method: RequestMethod.GET },
       { path: 'recommendations', method: RequestMethod.GET },
+      { path: 'privacy', method: RequestMethod.GET },
+      { path: 'refund', method: RequestMethod.GET },
     ],
   });
 

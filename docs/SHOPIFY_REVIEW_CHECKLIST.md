@@ -76,10 +76,15 @@ Only request scopes you need. Justification for review: “We use product and th
 
 Shopify requires:
 
-- **Privacy policy URL** — Live URL to your privacy policy (how you collect, use, store shop data and tokens).
-- **Refund policy URL** — Live URL to your refund/cancellation policy (e.g. cancel anytime from Shopify billing; no refund for partial months if you state that).
+- **Privacy policy URL** — Live URL to your privacy policy.
+- **Refund policy URL** — Live URL to your refund/cancellation policy.
 
-Add these in Partners before submitting for review. The app does not serve these pages; they must be hosted elsewhere (e.g. your marketing site or a static page).
+The app serves these at:
+
+- **Privacy:** `https://YOUR-RAILWAY-URL/privacy`
+- **Refund:** `https://YOUR-RAILWAY-URL/refund`
+
+Use these exact URLs in Partners (replace `YOUR-RAILWAY-URL` with your real app URL, no trailing slash). Add them in **App setup → Policies** before submitting for review.
 
 ---
 
