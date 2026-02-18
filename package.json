@@ -6,7 +6,9 @@
     "dev:admin": "pnpm --filter admin exec pnpm run dev",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
-    "test": "pnpm -r run test"
+    "test": "pnpm -r run test",
+    "railway:build": "cd apps/backend && npm install && npm run build",
+    "railway:start": "cd apps/backend && npm run start"
   },
   "engines": {
     "node": ">=20"

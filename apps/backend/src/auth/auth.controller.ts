@@ -30,6 +30,61 @@ export class AuthController {
   }
 
   /**
+   * GET /api/auth/debug?shop=store.myshopify.com
+   * Shows which app the backend uses and whether the stored token works with Shopify.
+   * Use this to verify Railway config and token before trying Subscribe.
+   */
+  @Get('debug')
+  async debug(@Query('shop') shop: string) {
+    const appUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const clientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+    const keyPreview = clientId.length >= 4 ? `${clientId.slice(0, 4)}...${clientId.slice(-4)}` : '(not set)';
+    let shopStatus = 'no shop param';
+    let tokenValid: boolean | null = null;
+    let tokenError: string | null = null;
+    if (shop?.trim()) {
+      const normalized = this.normalizeShop(shop);
+      const found = await this.shops.findByDomain(normalized);
+      shopStatus = found ? `shop exists (token stored)` : `no shop - open app to run OAuth`;
+      if (found) {
+        try {
+          const token = this.shops.getAccessToken(found);
+          const res = await fetch(`https://${normalized}/admin/api/2024-01/shop.json`, {
+            headers: { 'X-Shopify-Access-Token': token },
+          });
+          tokenValid = res.ok;
+          if (!res.ok) {
+            const text = await res.text();
+            tokenError = `${res.status}: ${text.slice(0, 200)}`;
+          }
+        } catch (e) {
+          tokenValid = false;
+          tokenError = e instanceof Error ? e.message : String(e);
+        }
+      }
+    }
+    const canBill = shopStatus === 'shop exists (token stored)' && tokenValid === true;
+    return {
+      railwayUrl: appUrl,
+      clientIdPreview: keyPreview,
+      shopStatus,
+      tokenValid,
+      tokenError: tokenError ?? undefined,
+      canBill,
+      nextStep:
+        !shop?.trim()
+          ? 'Add ?shop=your-store.myshopify.com'
+          : shopStatus.startsWith('no shop')
+            ? 'Open the app from Shopify Admin to run OAuth, or use /api/auth/forget?shop=... then open app'
+            : tokenValid === false
+              ? 'Token invalid (wrong app or revoked). Use /api/auth/forget?shop=' + encodeURIComponent(shop?.trim() ?? '') + ' then open the app from Shopify Admin to re-auth with the Dev Dashboard app.'
+              : canBill
+                ? 'Token is valid. Try Subscribe. If you still get 422, the token is for a store-owned app: uninstall that app, use forget, then install only the Dev Dashboard app.'
+                : 'Unexpected state',
+    };
+  }
+
+  /**
    * GET /api/auth?shop=store.myshopify.com
    * Redirects to Shopify OAuth. If already installed, can redirect to app instead.
    */

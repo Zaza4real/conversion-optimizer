@@ -24,7 +24,7 @@ Self-serve CRO for Shopify: diagnose bottlenecks, apply changes via theme extens
 5. **Backend:** `cd apps/backend && pnpm start:dev` → API at `http://localhost:4000/api`
 6. **Admin (optional):** `cd apps/admin && pnpm dev` — use a tunnel (e.g. ngrok) and set that URL as `SHOPIFY_APP_URL` in Partners.
 
-**Deploy to Render:** Push the repo to GitHub/GitLab, connect it as a Blueprint in [Render](https://dashboard.render.com), then follow [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md). Use the Render service URL as **SHOPIFY_APP_URL** in the Render environment and in Shopify Partners.
+**Deploy (Railway):** Connect the repo at [railway.app](https://railway.app), add Postgres + Redis, set root to `apps/backend`, add env vars, then follow [docs/DEPLOY_RAILWAY.md](docs/DEPLOY_RAILWAY.md). Use the Railway public URL as **SHOPIFY_APP_URL** in Shopify Partners.
 
 ## Docs
 
