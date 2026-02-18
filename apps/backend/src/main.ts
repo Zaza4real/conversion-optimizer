@@ -27,9 +27,12 @@ async function bootstrap() {
     next();
   });
 
-  // GET / is for Shopify install; keep it outside /api so Shopify's request hits it.
+  // GET / and GET /favicon.ico stay outside /api for the app iframe and browser requests.
   app.setGlobalPrefix('api', {
-    exclude: [{ path: '/', method: RequestMethod.GET }],
+    exclude: [
+      { path: '/', method: RequestMethod.GET },
+      { path: 'favicon.ico', method: RequestMethod.GET },
+    ],
   });
 
   const port = process.env.PORT || 4000;

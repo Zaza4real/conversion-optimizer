@@ -16,6 +16,12 @@ export class RootController {
     private readonly config: ConfigService,
   ) {}
 
+  /** Avoid 404 when browser requests /favicon.ico */
+  @Get('favicon.ico')
+  favicon(@Res() res: Response) {
+    res.status(204).send();
+  }
+
   @Get()
   async index(@Req() req: Request, @Res() res: Response) {
     const shop = (req.query.shop as string)?.trim();
@@ -64,29 +70,94 @@ export class RootController {
 
   private getAppHomeHtml(shop: string, subscribeUrl: string, hasPlan: boolean, baseUrl: string): string {
     const title = 'Conversion Optimizer';
-    const cta = hasPlan
-      ? '<p><a href="' + subscribeUrl + '" target="_top">Manage billing</a></p>'
-      : '<p><strong><a href="' + subscribeUrl + '" target="_top">Subscribe for $19/month</a></strong> to run scans and get recommendations.</p>';
     const statusUrl = subscribeUrl.replace('/billing/subscribe', '/billing/status');
     const shopEnc = encodeURIComponent(shop);
     const scanUrl = `${baseUrl}/api/scan/${shopEnc}`;
     const recsUrl = `${baseUrl}/api/recommendations/${shopEnc}?limit=10`;
-    const testSection = hasPlan
-      ? `<h2>Test</h2>
-<ul>
-  <li><form action="${scanUrl}" method="post" target="_top" style="display:inline;"><button type="submit">Run scan</button></form> — enqueues a CRO scan for your store</li>
-  <li><a href="${recsUrl}" target="_top">View recommendations</a> — returns JSON (or open in new tab)</li>
-</ul>`
-      : '<p><small>Subscribe above to unlock <strong>Run scan</strong> and <strong>View recommendations</strong>.</small></p>';
+    // Favicon as data URI to avoid 404 (simple green dot)
+    const favicon =
+      'data:image/svg+xml,' +
+      encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="%23008060"/></svg>');
+
+    const ctaCard = hasPlan
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your store is on the <strong>$19/month</strong> plan.</p><a href="${subscribeUrl}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
+      : `<div class="card card-highlight"><h2 class="card-title">Get started</h2><p class="card-text">Subscribe to run CRO scans and view recommendations for your store.</p><a href="${subscribeUrl}" target="_top" class="btn btn-primary">Subscribe — $19/month</a></div>`;
+
+    const actionsCard = hasPlan
+      ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><form action="${scanUrl}" method="post" target="_top" class="action-item"><button type="submit" class="btn btn-primary">Run scan</button><span class="action-desc">Analyze your store and generate CRO recommendations</span></form><div class="action-item"><a href="${recsUrl}" target="_top" class="btn btn-secondary">View recommendations</a><span class="action-desc">Open recommendations JSON in a new tab</span></div></div></div>`
+      : '<div class="card"><p class="card-text muted">Run scan and View recommendations unlock after you subscribe.</p></div>';
+
     return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em;} a{color:#008060;} code{background:#eee;padding:2px 6px;}</style></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="${favicon}" type="image/svg+xml">
+  <title>${title}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #202223;
+      background: #f6f6f7;
+      min-height: 100vh;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    .page-header { margin-bottom: 24px; }
+    .page-title { font-size: 22px; font-weight: 600; margin: 0 0 4px 0; color: #202223; }
+    .page-subtitle { font-size: 13px; color: #6d7175; margin: 0; }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 0 rgba(0,0,0,.05);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card-highlight { border-left: 4px solid #008060; }
+    .card-title { font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: #202223; }
+    .card-text { margin: 0 0 16px 0; color: #6d7175; }
+    .card-text.muted { margin: 0; }
+    .btn {
+      display: inline-block;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-primary { background: #008060; color: #fff; }
+    .btn-primary:hover { background: #006e52; }
+    .btn-secondary { background: #f6f6f7; color: #202223; border: 1px solid #c9cccf; }
+    .btn-secondary:hover { background: #e1e3e5; }
+    .action-list { display: flex; flex-direction: column; gap: 16px; }
+    .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .action-desc { font-size: 13px; color: #6d7175; }
+    .footer { margin-top: 24px; font-size: 12px; color: #6d7175; }
+    .footer a { color: #008060; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
 <body>
-<h1>${title}</h1>
-<p>Store: <strong>${shop}</strong></p>
-${cta}
-<p><small>API: <a href="${statusUrl}" target="_top">billing status</a></small></p>
-${testSection}
-</body></html>`;
+  <div class="container">
+    <header class="page-header">
+      <h1 class="page-title">${title}</h1>
+      <p class="page-subtitle">${shop}</p>
+    </header>
+    ${ctaCard}
+    ${actionsCard}
+    <footer class="footer">
+      <a href="${statusUrl}" target="_top">Billing status</a>
+    </footer>
+  </div>
+</body>
+</html>`;
   }
 
   private getBaseUrl(req: Request): string {
