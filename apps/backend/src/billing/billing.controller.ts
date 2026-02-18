@@ -52,20 +52,22 @@ export class BillingController {
 
   /**
    * GET /api/billing/return?charge_id=123&shop=example.myshopify.com
-   * Shopify redirects here after the merchant approves the charge. We confirm/activate and mark the shop as paid.
+   * Shopify redirects here after the merchant approves the charge (REST or GraphQL). We confirm and mark the shop as paid.
    */
   @Get('return')
   async return(
     @Query('charge_id') chargeId: string | undefined,
+    @Query('subscription_id') subscriptionId: string | undefined,
     @Query('shop') shop: string | undefined,
     @Res() res: Response,
   ) {
-    if (!chargeId?.trim() || !shop?.trim()) {
-      res.status(400).send('Missing charge_id or shop');
+    const id = (chargeId ?? subscriptionId)?.trim();
+    if (!id || !shop?.trim()) {
+      res.status(400).send('Missing charge_id (or subscription_id) and shop');
       return;
     }
     try {
-      await this.billing.confirmAndActivate(shop.trim(), chargeId.trim());
+      await this.billing.confirmAndActivate(shop.trim(), id);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Activation failed';
       res.status(400).send(`Billing activation failed: ${message}`);

@@ -37,11 +37,15 @@ export class AuthController {
   @Get('debug')
   async debug(@Query('shop') shop: string) {
     const appUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
-    const clientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
-    const keyPreview = clientId.length >= 4 ? `${clientId.slice(0, 4)}...${clientId.slice(-4)}` : '(not set)';
+    const ourClientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+    const keyPreview = ourClientId.length >= 4 ? `${ourClientId.slice(0, 4)}...${ourClientId.slice(-4)}` : '(not set)';
     let shopStatus = 'no shop param';
     let tokenValid: boolean | null = null;
     let tokenError: string | null = null;
+    let tokenAppApiKey: string | null = null;
+    let tokenAppTitle: string | null = null;
+    let tokenAppDeveloperType: string | null = null;
+    let tokenAppCheckError: string | null = null;
     if (shop?.trim()) {
       const normalized = this.normalizeShop(shop);
       const found = await this.shops.findByDomain(normalized);
@@ -56,6 +60,28 @@ export class AuthController {
           if (!res.ok) {
             const text = await res.text();
             tokenError = `${res.status}: ${text.slice(0, 200)}`;
+          } else {
+            const gqlRes = await fetch(`https://${normalized}/admin/api/2024-01/graphql.json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': token,
+              },
+              body: JSON.stringify({
+                query: `query { currentAppInstallation { app { apiKey, title, developerType } } }`,
+              }),
+            });
+            const gqlBody = (await gqlRes.json()) as { data?: { currentAppInstallation?: { app?: { apiKey?: string; title?: string; developerType?: string } } }; errors?: { message?: string }[] };
+            if (gqlRes.ok && gqlBody?.data?.currentAppInstallation?.app) {
+              const app = gqlBody.data.currentAppInstallation.app;
+              tokenAppApiKey = app.apiKey ?? null;
+              tokenAppTitle = app.title ?? null;
+              tokenAppDeveloperType = app.developerType ?? null;
+            } else if (!gqlRes.ok) {
+              tokenAppCheckError = `GraphQL ${gqlRes.status}: ${JSON.stringify(gqlBody).slice(0, 150)}`;
+            } else if (gqlBody?.errors?.length) {
+              tokenAppCheckError = gqlBody.errors.map((e) => e?.message ?? '').join('; ') || 'GraphQL errors';
+            }
           }
         } catch (e) {
           tokenValid = false;
@@ -63,24 +89,29 @@ export class AuthController {
         }
       }
     }
+    const tokenMatchesOurApp = tokenAppApiKey != null && tokenAppApiKey === ourClientId;
     const canBill = shopStatus === 'shop exists (token stored)' && tokenValid === true;
+    let nextStep: string;
+    if (!shop?.trim()) nextStep = 'Add ?shop=your-store.myshopify.com';
+    else if (shopStatus.startsWith('no shop')) nextStep = 'Open the app from Shopify Admin to run OAuth, or use /api/auth/forget?shop=... then open app';
+    else if (tokenValid === false) nextStep = 'Token invalid (wrong app or revoked). Use /api/auth/forget?shop=' + encodeURIComponent(shop?.trim() ?? '') + ' then open the app from Shopify Admin to re-auth with the Dev Dashboard app.';
+    else if (!tokenMatchesOurApp) nextStep = `Token is for a different app (${tokenAppTitle ?? tokenAppApiKey ?? 'unknown'}). Uninstall that app in Admin → Apps, use /api/auth/forget?shop=..., then install only the Dev Dashboard app and open it.`;
+    else if (canBill) nextStep = 'Token is for this app. Try Subscribe. If you still get 422, the app may be store-owned in Partners: create a new app in Dev Dashboard or contact Shopify support.';
+    else nextStep = 'Unexpected state';
+
     return {
       railwayUrl: appUrl,
       clientIdPreview: keyPreview,
       shopStatus,
       tokenValid,
       tokenError: tokenError ?? undefined,
+      tokenAppApiKey: tokenAppApiKey ?? undefined,
+      tokenAppTitle: tokenAppTitle ?? undefined,
+      tokenAppDeveloperType: tokenAppDeveloperType ?? undefined,
+      tokenAppCheckError: tokenAppCheckError ?? undefined,
+      tokenMatchesOurApp: tokenAppApiKey != null ? tokenMatchesOurApp : undefined,
       canBill,
-      nextStep:
-        !shop?.trim()
-          ? 'Add ?shop=your-store.myshopify.com'
-          : shopStatus.startsWith('no shop')
-            ? 'Open the app from Shopify Admin to run OAuth, or use /api/auth/forget?shop=... then open app'
-            : tokenValid === false
-              ? 'Token invalid (wrong app or revoked). Use /api/auth/forget?shop=' + encodeURIComponent(shop?.trim() ?? '') + ' then open the app from Shopify Admin to re-auth with the Dev Dashboard app.'
-              : canBill
-                ? 'Token is valid. Try Subscribe. If you still get 422, the token is for a store-owned app: uninstall that app, use forget, then install only the Dev Dashboard app.'
-                : 'Unexpected state',
+      nextStep,
     };
   }
 
