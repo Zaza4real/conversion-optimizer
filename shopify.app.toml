@@ -1,29 +1,32 @@
-# Conversion Optimizer — app config for Shopify CLI (webhooks, etc.)
-# Run: shopify app config link   (link to your existing ConversionOptimizer app)
-# Then: shopify app deploy      (push this config so compliance webhooks are registered)
-# Replace APPLICATION_URL below with your real backend URL if different.
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
+client_id = "202780340f92ceb076857c78337a3910"
 name = "ConversionOptimizer"
-# client_id is set when you run: pnpm shopify:link (select ConversionOptimizer in the list)
 application_url = "https://conversion-optimizer-api-production.up.railway.app"
-
-[access_scopes]
-scopes = "read_products,read_orders,read_themes"
+embedded = true
 
 [webhooks]
-api_version = "2024-01"
+api_version = "2026-01"
 
-# Mandatory compliance webhooks (required for App Store)
-[[webhooks.subscriptions]]
-compliance_topics = ["customers/data_request"]
-uri = "/api/webhooks/shopify/customers/data_request"
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks/shopify/customers/data_request"
+  compliance_topics = [ "customers/data_request" ]
 
-[[webhooks.subscriptions]]
-compliance_topics = ["customers/redact"]
-uri = "/api/webhooks/shopify/customers/redact"
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks/shopify/customers/redact"
+  compliance_topics = [ "customers/redact" ]
 
-[[webhooks.subscriptions]]
-compliance_topics = ["shop/redact"]
-uri = "/api/webhooks/shopify/shop/redact"
+  [[webhooks.subscriptions]]
+  uri = "/api/webhooks/shopify/shop/redact"
+  compliance_topics = [ "shop/redact" ]
 
-# Event webhooks (app_uninstalled, etc.) — add in Partners or via Dashboard if needed
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,read_themes"
+optional_scopes = [ ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [
+  "https://conversion-optimizer-api-production.up.railway.app/api/auth/callback"
+]
