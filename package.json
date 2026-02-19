@@ -2,6 +2,8 @@
   "name": "conversion-optimizer",
   "private": true,
   "scripts": {
+    "shopify:link": "pnpm exec shopify app config link --client-id 202788348f92ceb076857c78337a3910",
+    "shopify:deploy": "pnpm exec shopify app deploy --allow-updates --allow-deletes",
     "dev:backend": "pnpm --filter backend exec pnpm run start:dev",
     "dev:admin": "pnpm --filter admin exec pnpm run dev",
     "build": "pnpm -r run build",
@@ -13,5 +15,8 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "devDependencies": {
+    "@shopify/cli": "^3.90.1"
+  }
 }

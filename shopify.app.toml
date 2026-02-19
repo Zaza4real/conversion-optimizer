@@ -4,7 +4,7 @@
 # Replace APPLICATION_URL below with your real backend URL if different.
 
 name = "ConversionOptimizer"
-# client_id is filled when you run: shopify app config link
+client_id = "202788348f92ceb076857c78337a3910"
 application_url = "https://conversion-optimizer-api-production.up.railway.app"
 
 [access_scopes]
