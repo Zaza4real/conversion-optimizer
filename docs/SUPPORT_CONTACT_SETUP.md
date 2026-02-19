@@ -17,6 +17,18 @@ The app has a **Support** page so merchants can reach you. The store landing and
 
 ---
 
+## Make "Back to Conversion Optimizer" go to your store
+
+Set **DEFAULT_BACK_URL** on your backend so that when someone opens Support (or Privacy/Refund) without a `return_to` in the URL, the Back link still goes to your store:
+
+| Variable | Example |
+|----------|--------|
+| **DEFAULT_BACK_URL** | `https://conversionoptimizer.myshopify.com/` |
+
+Links from your store landing already include `return_to`, so Back will use that when present; **DEFAULT_BACK_URL** is the fallback when it’s missing.
+
+---
+
 ## Show your support email on the page
 
 Set this variable on your backend (e.g. Railway):

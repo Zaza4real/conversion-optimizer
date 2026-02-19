@@ -35,25 +35,28 @@ export class RootController {
     res.status(200).send(JSON.stringify({ status: 'ok', app: 'Conversion Optimizer' }));
   }
 
-  /** GET /privacy — Privacy policy (for Shopify Partners App setup). */
+  /** GET /privacy — Privacy policy (for Shopify Partners App setup). ?return_to=URL used for "Back" link. */
   @Get('privacy')
-  privacy(@Res() res: Response) {
+  privacy(@Req() req: Request, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(this.getPolicyHtml('Privacy Policy', this.getPrivacyContent()));
+    const backUrl = this.getBackUrlFromRequest(req);
+    res.send(this.getPolicyHtml('Privacy Policy', this.getPrivacyContent(), backUrl));
   }
 
-  /** GET /refund — Refund and cancellation policy (for Shopify Partners App setup). */
+  /** GET /refund — Refund and cancellation policy (for Shopify Partners App setup). ?return_to=URL used for "Back" link. */
   @Get('refund')
-  refund(@Res() res: Response) {
+  refund(@Req() req: Request, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(this.getPolicyHtml('Refund & Cancellation Policy', this.getRefundContent()));
+    const backUrl = this.getBackUrlFromRequest(req);
+    res.send(this.getPolicyHtml('Refund & Cancellation Policy', this.getRefundContent(), backUrl));
   }
 
-  /** GET /support — Support and contact page (Pro 24/7 support). */
+  /** GET /support — Support and contact page (Pro 24/7 support). ?return_to=URL used for "Back" link. */
   @Get('support')
-  support(@Res() res: Response) {
+  support(@Req() req: Request, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.send(this.getSupportPageHtml());
+    const backUrl = this.getBackUrlFromRequest(req);
+    res.send(this.getSupportPageHtml(backUrl));
   }
 
   /** GET /landing — Premium marketing landing page for the app (store owners, not product catalog). */
@@ -416,9 +419,40 @@ export class RootController {
 </html>`;
   }
 
-  private getPolicyHtml(title: string, bodyHtml: string): string {
-    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
-    const backUrl = baseUrl ? `${baseUrl}/` : '#';
+  /** Back link: prefer App Store listing so "Back" doesn't send users to the generic API landing page. */
+  private getBackUrl(): string {
+    const appStore = this.config.get<string>('APP_STORE_LISTING_URL')?.trim();
+    if (appStore && appStore !== '#') return appStore;
+    return 'https://apps.shopify.com/conversion-optimizer';
+  }
+
+  /** "Back to Conversion Optimizer" must go to the store, never to the API. Use return_to, then DEFAULT_BACK_URL, then hardcoded store. */
+  private static readonly STORE_BACK_URL = 'https://conversionoptimizer.myshopify.com/';
+
+  private getBackUrlFromRequest(req: Request): string {
+    const raw = (req.query?.return_to as string)?.trim();
+    if (raw && raw.startsWith('https://')) {
+      try {
+        const u = new URL(raw);
+        if (u.protocol === 'https:' && u.hostname.endsWith('.myshopify.com')) return raw;
+      } catch {
+        // ignore
+      }
+    }
+    const defaultBack = this.config.get<string>('DEFAULT_BACK_URL')?.trim();
+    if (defaultBack && defaultBack.startsWith('https://')) {
+      try {
+        const u = new URL(defaultBack);
+        if (u.protocol === 'https:' && u.hostname.endsWith('.myshopify.com')) return defaultBack.replace(/\/$/, '') + '/';
+      } catch {
+        // ignore
+      }
+    }
+    return RootController.STORE_BACK_URL;
+  }
+
+  private getPolicyHtml(title: string, bodyHtml: string, backUrl?: string): string {
+    const url = backUrl ?? this.getBackUrl();
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -442,7 +476,7 @@ export class RootController {
 </head>
 <body>
   <div class="wrap">
-    <div class="back"><a href="${backUrl}">← Back to Conversion Optimizer</a></div>
+    <div class="back"><a href="${url}">← Back to Conversion Optimizer</a></div>
     <div class="card">
       <h1>${title}</h1>
       ${bodyHtml}
@@ -483,9 +517,9 @@ export class RootController {
 <p>For billing or refund questions, use the support contact provided in the app listing.</p>`;
   }
 
-  private getSupportPageHtml(): string {
+  private getSupportPageHtml(backUrl?: string): string {
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
-    const backUrl = baseUrl ? `${baseUrl}/` : '#';
+    const url = backUrl ?? this.getBackUrl();
     const supportEmail = this.config.get<string>('SUPPORT_EMAIL')?.trim() || '';
     const contactBlock = supportEmail
       ? `<p><strong>Email:</strong> <a href="mailto:${this.escapeHtml(supportEmail)}">${this.escapeHtml(supportEmail)}</a></p><p>We aim to respond to all inquiries quickly. <strong>Pro plan</strong> subscribers get 24/7 priority support.</p>`
@@ -514,7 +548,7 @@ export class RootController {
 </head>
 <body>
   <div class="wrap">
-    <div class="back"><a href="${backUrl}">← Back to Conversion Optimizer</a></div>
+    <div class="back"><a href="${url}">← Back to Conversion Optimizer</a></div>
     <div class="card">
       <h1>Support</h1>
       <p>Have questions, issues, or feedback? We're here to help.</p>

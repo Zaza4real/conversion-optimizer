@@ -2,7 +2,12 @@
   Conversion Optimizer — Premium app landing. Paste into: Themes → Customize → Home → Custom liquid.
   Green #008060 matches app favicon/icon. Header: remove "Products" from Main menu.
   Install/plan buttons → https://apps.shopify.com/conversion-optimizer (use this once the app is live; if 404 during draft, see CUSTOMIZE_STORE_LANDING_TIPS.md for backend URL option).
+  Privacy/Refund/Support links include return_to so "Back to Conversion Optimizer" returns to this store.
 -->
+{% assign co_store_url = 'https://' | append: shop.permanent_domain | append: '/' %}
+{% assign co_return_to = co_store_url | url_param_escape %}
+{% assign co_backend = 'https://conversion-optimizer-api-production.up.railway.app' %}
+{% assign co_app_store = 'https://apps.shopify.com/conversion-optimizer' %}
 <div class="co-landing" style="box-sizing:border-box;margin:0;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:16px;line-height:1.6;color:#0f172a;background:#fff;min-height:80vh;padding:40px 20px 64px;">
   <div style="max-width:580px;margin:0 auto;">
     <!-- Logo + brand -->
@@ -79,14 +84,14 @@
     <section style="margin:44px 0;padding:24px;background:#f8fafc;border-radius:14px;border:1px solid #e5e7eb;">
       <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0f172a;">Need help?</p>
       <p style="margin:0 0 14px;font-size:14px;color:#475569;line-height:1.55;">Have questions or running into issues? <strong>Pro plan includes 24/7 support.</strong> Get in touch and we’ll get you sorted.</p>
-      <a href="https://conversion-optimizer-api-production.up.railway.app/support" target="_blank" rel="noopener" style="display:inline-block;font-size:14px;font-weight:600;color:#008060;text-decoration:none;">Contact support →</a>
+      <a href="{{ co_backend }}/support?return_to={{ co_return_to }}" target="_blank" rel="noopener" style="display:inline-block;font-size:14px;font-weight:600;color:#008060;text-decoration:none;">Contact support →</a>
     </section>
 
     <!-- Email signup: posts to your app backend; you receive signups in DB and optionally by email (set NEWSLETTER_NOTIFY_EMAIL + SMTP in Railway). -->
     <section style="margin:44px 0;padding:28px 24px;background:#f8fafc;border-radius:14px;border:1px solid #e5e7eb;">
       <p style="margin:0 0 4px;font-size:15px;font-weight:600;color:#0f172a;">Join our email list</p>
       <p style="margin:0 0 16px;font-size:14px;color:#64748b;">Get exclusive deals and early access to new products.</p>
-      <form action="https://conversion-optimizer-api-production.up.railway.app/api/landing/newsletter" method="post" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <form action="{{ co_backend }}/api/landing/newsletter" method="post" style="display:flex;gap:10px;flex-wrap:wrap;">
         <input type="hidden" name="return_to" value="https://{{ shop.permanent_domain }}{{ request.path | default: '/' }}">
         <input type="email" name="email" required placeholder="Email address" style="flex:1;min-width:180px;padding:12px 16px;border:1px solid #e5e7eb;border-radius:10px;font-size:15px;font-family:inherit;">
         <button type="submit" style="padding:12px 24px;border-radius:10px;font-size:15px;font-weight:600;font-family:inherit;background:#008060;color:#fff;border:none;cursor:pointer;box-shadow:0 2px 8px rgba(0,128,96,.3);">Subscribe</button>
@@ -97,12 +102,33 @@
       (function(){var u=new URL(window.location.href);var s=u.searchParams.get('newsletter');var el=document.getElementById('co-newsletter-msg');if(el&&s==='success'){el.style.display='block';el.textContent='Thanks for signing up!';}else if(el&&s==='invalid'){el.style.display='block';el.textContent='Please enter a valid email address.';}})();
     </script>
 
-    <footer style="margin-top:52px;padding-top:24px;border-top:1px solid #e5e7eb;font-size:13px;color:#64748b;text-align:center;">
-      <a href="https://conversion-optimizer-api-production.up.railway.app/privacy" target="_blank" rel="noopener" style="color:#008060;text-decoration:none;font-weight:500;">Privacy</a>
-      <span style="margin:0 10px;color:#cbd5e1">|</span>
-      <a href="https://conversion-optimizer-api-production.up.railway.app/refund" target="_blank" rel="noopener" style="color:#008060;text-decoration:none;font-weight:500;">Refund policy</a>
-      <span style="margin:0 10px;color:#cbd5e1">|</span>
-      <a href="https://conversion-optimizer-api-production.up.railway.app/support" target="_blank" rel="noopener" style="color:#008060;text-decoration:none;font-weight:500;">Support</a>
+    <!-- Premium footer: full width, dark bar, columns, copyright -->
+    <style>.co-footer a:hover{color:#fff !important;}</style>
+    <footer class="co-footer" style="margin-top:56px;background:#0f172a;color:#94a3b8;padding:48px 24px 32px;">
+      <div style="max-width:580px;margin:0 auto;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:32px;margin-bottom:40px;">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="32" height="32" rx="6" fill="#008060"/><path d="M8 20l8-10 8 10H8z" fill="#fff"/><path d="M10 20h12v2H10z" fill="#fff"/></svg>
+              <span style="font-size:16px;font-weight:700;color:#fff;letter-spacing:-0.02em;">Conversion Optimizer</span>
+            </div>
+            <p style="font-size:13px;line-height:1.5;margin:0 0 16px;color:#94a3b8;">The app that fixes what’s broken on your store so you convert more and sell more.</p>
+            <a href="{{ co_app_store }}" target="_blank" rel="noopener" style="display:inline-block;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;background:#008060;color:#fff;text-decoration:none;">Get the app</a>
+          </div>
+          <div>
+            <p style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;margin:0 0 14px;">Legal &amp; support</p>
+            <ul style="list-style:none;margin:0;padding:0;">
+              <li style="margin-bottom:10px;"><a href="{{ co_backend }}/privacy?return_to={{ co_return_to }}" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;font-size:14px;">Privacy policy</a></li>
+              <li style="margin-bottom:10px;"><a href="{{ co_backend }}/refund?return_to={{ co_return_to }}" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;font-size:14px;">Refund policy</a></li>
+              <li><a href="{{ co_backend }}/support?return_to={{ co_return_to }}" target="_blank" rel="noopener" style="color:#94a3b8;text-decoration:none;font-size:14px;">Support</a></li>
+            </ul>
+          </div>
+        </div>
+        <div style="border-top:1px solid #334155;padding-top:24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;">
+          <p style="margin:0;font-size:13px;color:#64748b;">&copy; {{ 'now' | date: '%Y' }} Conversion Optimizer. All rights reserved.</p>
+          <p style="margin:0;font-size:12px;color:#64748b;">Cancel anytime from Shopify billing.</p>
+        </div>
+      </div>
     </footer>
   </div>
 </div>
