@@ -152,6 +152,12 @@ export class AuthController {
       res.status(400).send('Missing code or shop');
       return;
     }
+    const appUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const secret = this.config.get<string>('SHOPIFY_API_SECRET') ?? '';
+    if (!appUrl || !secret) {
+      res.status(503).send('App configuration incomplete. Set SHOPIFY_APP_URL and SHOPIFY_API_SECRET.');
+      return;
+    }
     if (!this.auth.verifyCallbackHmac(query)) {
       res.status(400).send('Invalid HMAC');
       return;

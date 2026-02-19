@@ -28,6 +28,13 @@ export class RootController {
     });
   }
 
+  /** GET /health — Readiness for load balancers and reviewers. */
+  @Get('health')
+  health(@Res() res: Response) {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).send(JSON.stringify({ status: 'ok', app: 'Conversion Optimizer' }));
+  }
+
   /** GET /privacy — Privacy policy (for Shopify Partners App setup). */
   @Get('privacy')
   privacy(@Res() res: Response) {
@@ -119,13 +126,24 @@ export class RootController {
 
     const hasPlan = this.shops.hasPaidPlan(existing);
     const currentPlanLabel = this.shops.getPlanLabel(existing);
+    const billingError = String(req.query.billing_error) === '1';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError));
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string): string {
+  private escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false): string {
     const title = 'Conversion Optimizer';
+    const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
     const statusUrl = `${baseUrl}/api/billing/status?shop=${shopEnc}`;
     const scanRunUrl = `${baseUrl}/scan/run?shop=${shopEnc}`;
@@ -138,8 +156,11 @@ export class RootController {
       { key: 'pro', name: 'Pro', price: 29, desc: 'Everything in Growth. For teams and high-volume stores.' },
     ];
 
+    const billingBanner = billingError
+      ? '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>'
+      : '';
     const ctaCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${currentPlanLabel}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
       : `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text" style="margin-bottom:16px;">Choose a plan. All include store scan, recommendations, and CSV export.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn ${p.popular ? 'btn-primary' : 'btn-secondary'}">Subscribe</a></div>`).join('')}</div></div>`;
 
     const actionsCard = hasPlan
@@ -175,6 +196,7 @@ export class RootController {
     .feature-list li { margin-bottom: 8px; }
     .card { background: #fafbfb; border: 1px solid #e1e3e5; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
     .card-highlight { border-color: #008060; background: #f9fafb; }
+    .card-error { border-color: #d72c0d; background: #fef2f2; }
     .card-title { font-size: 13px; font-weight: 600; margin: 0 0 8px 0; color: #202223; letter-spacing: 0.02em; text-transform: uppercase; }
     .card-text { margin: 0 0 14px 0; color: #6d7175; font-size: 14px; }
     .card-text.muted { margin: 0; }
@@ -203,8 +225,9 @@ export class RootController {
   <div class="container">
     <header class="app-header">
       <div class="brand"><img src="/logo.svg" alt="" class="app-logo-icon"><span class="app-wordmark">${title}</span></div>
-      <span class="shop-badge">${shop}</span>
+      <span class="shop-badge">${shopSafe}</span>
     </header>
+    ${billingBanner}
     <p class="hero-line"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store. Run a scan, then work through recommendations by severity.</p>
     ${featuresHtml}
     ${ctaCard}
@@ -241,6 +264,7 @@ export class RootController {
         <li>Theme blocks and layout on product and global pages</li>
         <li>Pricing and compare-at consistency</li>
       </ul>
+      <p class="scan-steps muted" style="font-size:12px;margin-top:8px;">Recommendations that suggest adding app blocks (e.g. trust, FAQ) require an <strong>Online Store 2.0</strong> theme. <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Theme versions</a></p>
       <p class="scan-steps">Click <strong>Start scan</strong>. The job runs in the background. When it finishes, open <strong>View recommendations</strong> from the app home to see your list.</p>
       <button type="button" id="runBtn" class="btn btn-primary">Start scan</button>
       <div id="result" style="display:none;"></div>
@@ -290,7 +314,7 @@ export class RootController {
       <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.svg" alt="" class="app-logo-small"><span class="app-wordmark-sub">Conversion Optimizer</span></a>
       <div><h1 class="page-title">Recommendations</h1><p class="page-subtitle">${shop}</p></div>
     </header>
-    <p class="rec-intro">Prioritized actions to improve conversion. Tackle high-impact items first, then medium and low.</p>
+    <p class="rec-intro">Prioritized actions to improve conversion. Tackle high-impact items first, then medium and low. Recommendations that add theme blocks require an <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Online Store 2.0</a> theme.</p>
     <div class="card">
       <div id="loading" class="card-text">Loading…</div>
       <div id="content" style="display:none;"></div>

@@ -42,6 +42,7 @@ async function bootstrap() {
       { path: 'recommendations', method: RequestMethod.GET },
       { path: 'privacy', method: RequestMethod.GET },
       { path: 'refund', method: RequestMethod.GET },
+      { path: 'health', method: RequestMethod.GET },
     ],
   });
 

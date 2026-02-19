@@ -45,7 +45,15 @@ The app handles these. Register them in Partners so Shopify can send events:
 | **App subscriptions update** | `https://YOUR-RAILWAY-URL/api/webhooks/shopify/app_subscriptions_update` | Clear billing when a subscription is cancelled/expired. |
 | **App subscriptions delete** | `https://YOUR-RAILWAY-URL/api/webhooks/shopify/app_subscriptions_delete` | Same as above. |
 
-All webhooks use HMAC verification (`X-Shopify-Hmac-Sha256`). Unregistered topics are ignored.
+**Compliance webhooks (required for App Store):** Register these three. The app responds 200 and does not expose errors to Shopify.
+
+| Topic | Endpoint |
+|-------|----------|
+| **Customers data request** | `https://YOUR-RAILWAY-URL/api/webhooks/shopify/customers/data_request` |
+| **Customers redact** | `https://YOUR-RAILWAY-URL/api/webhooks/shopify/customers/redact` |
+| **Shop redact** | `https://YOUR-RAILWAY-URL/api/webhooks/shopify/shop/redact` |
+
+All webhooks use HMAC verification (`X-Shopify-Hmac-Sha256`). Invalid HMAC returns `401`. Unregistered topics are ignored.
 
 ---
 
@@ -118,17 +126,24 @@ Ensure there are no 500 errors, no “refused to connect” in the iframe (CSP `
 | Billing unclear or broken | Three plans with clear prices; GraphQL billing; return URL confirms and stores plan. |
 | Missing privacy/refund policy | You must add URLs in Partners; the app does not host them. |
 | Webhooks not registered | Register app_uninstalled and app_subscriptions_* in Partners. |
+| Compliance webhooks missing | Register customers/data_request, customers/redact, shop/redact; app returns 200 and 401 for invalid HMAC. |
 | Too many or unjustified scopes | We use read_products, read_themes; read_orders is optional and can be removed. |
 | Crashes or 500 with stack trace | Auth and billing validate input; missing config returns 503. Nest default error handler may still return JSON errors; ensure NODE_ENV=production if you want to hide stack traces. |
 
 ---
 
-## 10. Quick verification before submit
+## 10. Configuration (App Store review page)
+
+Before submitting, complete in the **App Store review** flow: **Emergency contact** (email + phone), **App icon** (1200×1200 px, JPEG or PNG), **API contact email** (must not contain "Shopify" or "Example"), and **App URL/domain** (no "Shopify" or "Example").
+
+## 11. Quick verification before submit
 
 - [ ] App URL and Redirect URL in Partners match `SHOPIFY_APP_URL` (no trailing slash).
 - [ ] All required env vars set in Railway (or your host).
-- [ ] Webhooks registered for app_uninstalled and app_subscriptions_*.
+- [ ] Event webhooks registered (app_uninstalled, app_subscriptions_*).
+- [ ] **Compliance webhooks** registered (customers/data_request, customers/redact, shop/redact).
 - [ ] Privacy policy and refund policy URLs set in Partners.
+- [ ] Emergency contact and app icon (1200×1200) set; API contact email and URLs free of "Shopify"/"Example".
 - [ ] Install app on a development store: open from Admin, complete OAuth, see app home.
 - [ ] Subscribe to a plan, run a scan, open recommendations, export CSV.
 - [ ] Uninstall and reinstall: OAuth runs again, app works.

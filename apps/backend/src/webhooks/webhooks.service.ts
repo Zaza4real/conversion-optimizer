@@ -45,25 +45,31 @@ export class WebhooksService {
       case 'app_uninstalled':
         await this.shops.markUninstalled(shopDomain);
         break;
-      case 'products_create':
-      case 'products_update':
-        // In a full impl we'd enqueue a sync job or upsert products_cache here
-        break;
-      case 'products_delete':
-        break;
-      case 'orders_create':
-      case 'orders_updated':
-        break;
-      case 'themes_publish':
-        break;
-      case 'shop_update':
-        break;
       case 'app_subscriptions_update':
       case 'app_subscriptions_delete':
         await this.handleSubscriptionUpdate(payload, shopDomain);
         break;
+      // Mandatory compliance webhooks (required for Shopify App Store)
+      case 'customers/data_request':
+        // We don't store customer PII; acknowledge receipt. Store owner gets data from Shopify.
+        break;
+      case 'customers/redact':
+        // We don't store per-customer data; acknowledge. No data to redact.
+        break;
+      case 'shop/redact':
+        // 48h after uninstall: erase all data for this shop (GDPR).
+        await this.shops.deleteByDomain(shopDomain);
+        break;
+      case 'products_create':
+      case 'products_update':
+        break;
+      case 'products_delete':
+      case 'orders_create':
+      case 'orders_updated':
+      case 'themes_publish':
+      case 'shop_update':
+        break;
       default:
-        // unknown topic, no-op
         break;
     }
   }
@@ -99,4 +105,10 @@ export class WebhooksService {
     if (typeof d === 'string') return d;
     return null;
   }
+}
+
+/** Topic as used in URL path: may be "customers/data_request" (compliance) or "app_uninstalled" (event). */
+export function webhookTopicFromParams(topicOrPart0: string, topicPart1?: string): string {
+  if (topicPart1 != null) return `${topicOrPart0}/${topicPart1}`;
+  return topicOrPart0;
 }

@@ -49,8 +49,14 @@ export class BillingController {
     }
     const normalized = this.normalizeShop(shop.trim());
     const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
-    const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
-    res.redirect(302, confirmationUrl);
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    try {
+      const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
+      res.redirect(302, confirmationUrl);
+    } catch {
+      const appUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&billing_error=1` : `https://${normalized}/admin`;
+      res.redirect(302, appUrl);
+    }
   }
 
   /**
@@ -74,9 +80,8 @@ export class BillingController {
     const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
     try {
       await this.billing.confirmAndActivate(normalizedShop, id, planKey);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Activation failed';
-      res.status(400).send(`Billing activation failed: ${message}`);
+    } catch {
+      res.status(400).send('Billing activation failed. Please try again or contact support.');
       return;
     }
     // Redirect back to the app root (Shopify will load the app in admin).

@@ -92,7 +92,8 @@ export class BillingService {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new BadRequestException(`Shopify billing API error: ${res.status} ${text}`);
+      console.error('[Billing] create subscription failed', res.status, text);
+      throw new BadRequestException('Unable to create subscription. Please try again.');
     }
 
     const data = (await res.json()) as {
@@ -109,7 +110,8 @@ export class BillingService {
     const gqlErrors = data.errors?.length ? data.errors : data.data?.appSubscriptionCreate?.userErrors;
     if (gqlErrors?.length) {
       const msg = gqlErrors.map((e) => (e as { message?: string }).message ?? JSON.stringify(e)).join('; ');
-      throw new BadRequestException(`Shopify billing API error: ${msg}`);
+      console.error('[Billing] GraphQL errors', msg);
+      throw new BadRequestException('Unable to create subscription. Please try again.');
     }
 
     const create = data.data?.appSubscriptionCreate;
@@ -117,7 +119,8 @@ export class BillingService {
     const appSubscriptionId = create?.appSubscription?.id ?? null;
 
     if (!confirmationUrl) {
-      throw new BadRequestException('Shopify did not return a confirmation URL');
+      console.error('[Billing] No confirmation URL in response');
+      throw new BadRequestException('Unable to create subscription. Please try again.');
     }
 
     const chargeId = appSubscriptionId ? this.parseSubscriptionId(appSubscriptionId) : 0;
@@ -143,7 +146,8 @@ export class BillingService {
       await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey);
       return;
     }
-    throw new BadRequestException(`Subscription not found or not active: ${chargeId}`);
+    console.error('[Billing] Subscription not found or not active', chargeId);
+    throw new BadRequestException('Subscription could not be activated. Please try again or contact support.');
   }
 
   private parseSubscriptionId(idOrGid: string): number {
@@ -169,14 +173,16 @@ export class BillingService {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new BadRequestException(`Failed to get subscriptions: ${res.status} ${text}`);
+      console.error('[Billing] getActiveSubscriptions failed', res.status, text);
+      throw new BadRequestException('Unable to verify subscription.');
     }
     const data = (await res.json()) as {
       data?: { currentAppInstallation?: { activeSubscriptions?: { id?: string }[] } };
       errors?: { message?: string }[];
     };
     if (data.errors?.length) {
-      throw new BadRequestException(data.errors.map((e) => e.message).join('; '));
+      console.error('[Billing] GraphQL errors', data.errors);
+      throw new BadRequestException('Unable to verify subscription.');
     }
     const subs = data.data?.currentAppInstallation?.activeSubscriptions ?? [];
     return subs.map((s) => s.id ?? '').filter(Boolean);

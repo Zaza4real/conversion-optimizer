@@ -36,11 +36,13 @@ export class ShopifyApiService {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Shopify API ${res.status}: ${text}`);
+      console.error('[Shopify API]', res.status, text.slice(0, 500));
+      throw new Error('Shopify API request failed. Please try again.');
     }
     const json = await res.json();
     if (json.errors?.length) {
-      throw new Error(`GraphQL errors: ${JSON.stringify(json.errors)}`);
+      console.error('[Shopify API] GraphQL errors', JSON.stringify(json.errors).slice(0, 500));
+      throw new Error('Shopify API request failed. Please try again.');
     }
     return json.data as T;
   }
