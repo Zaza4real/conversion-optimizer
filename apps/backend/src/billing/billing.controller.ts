@@ -4,6 +4,12 @@ import { Response } from 'express';
 import { BillingService } from './billing.service';
 import { ShopsService } from '../shops/shops.service';
 
+function logBillingError(step: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`[Billing] ${step} failed:`, msg);
+  if (err instanceof Error && err.stack) console.error(err.stack);
+}
+
 @Controller('billing')
 export class BillingController {
   constructor(
@@ -53,7 +59,8 @@ export class BillingController {
     try {
       const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
       res.redirect(302, confirmationUrl);
-    } catch {
+    } catch (err) {
+      logBillingError('subscribe', err);
       const appUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&billing_error=1` : `https://${normalized}/admin`;
       res.redirect(302, appUrl);
     }
@@ -80,7 +87,8 @@ export class BillingController {
     const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
     try {
       await this.billing.confirmAndActivate(normalizedShop, id, planKey);
-    } catch {
+    } catch (err) {
+      logBillingError('return (confirmAndActivate)', err);
       res.status(400).send('Billing activation failed. Please try again or contact support.');
       return;
     }
