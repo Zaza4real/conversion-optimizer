@@ -55,16 +55,18 @@ export class BillingService {
       throw new BadRequestException('SHOPIFY_APP_URL is not configured');
     }
     const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}&plan=${encodeURIComponent(planKey)}`;
-    // In production, always create real charges. Test charges only when BILLING_TEST=true and not in production.
-    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    // Use test charges when BILLING_TEST=true (e.g. when testing on a development store).
+    // Development stores cannot accept real charges; they only accept test subscriptions.
     const billingTest = this.config.get<string>('BILLING_TEST') === 'true';
-    const isTest = !isProduction && billingTest;
-    if (isProduction && billingTest) {
-      console.warn('[Billing] BILLING_TEST is true in production; ignoring and creating real charge so customers are charged.');
+    const isTest = billingTest;
+    if (isTest) {
+      console.warn('[Billing] Creating TEST subscription (BILLING_TEST=true). Set BILLING_TEST=false for real charges.');
+    } else {
+      console.log('[Billing] Creating real subscription (test=false).');
     }
 
-    const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
-  appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
+    const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean, $replacementBehavior: AppSubscriptionReplacementBehavior) {
+  appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test, replacementBehavior: $replacementBehavior) {
     userErrors { field message }
     confirmationUrl
     appSubscription { id }
@@ -74,6 +76,7 @@ export class BillingService {
       name: planConfig.name,
       returnUrl,
       test: isTest,
+      replacementBehavior: 'APPLY_IMMEDIATELY',
       lineItems: [
         {
           plan: {
