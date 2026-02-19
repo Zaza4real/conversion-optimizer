@@ -2,7 +2,7 @@
   "name": "conversion-optimizer",
   "private": true,
   "scripts": {
-    "shopify:link": "pnpm exec shopify app config link --client-id 202788348f92ceb076857c78337a3910",
+    "shopify:link": "pnpm exec shopify app config link",
     "shopify:deploy": "pnpm exec shopify app deploy --allow-updates --allow-deletes",
     "dev:backend": "pnpm --filter backend exec pnpm run start:dev",
     "dev:admin": "pnpm --filter admin exec pnpm run dev",
