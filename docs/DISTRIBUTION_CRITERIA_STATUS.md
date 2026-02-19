@@ -32,7 +32,7 @@ Shopify expects:
    - To meet this you’d need to: load App Bridge on the embedded app, call `getSessionToken()`, and send that token to the backend; backend verifies the JWT with Shopify instead of (or in addition to) using the stored access token.
 
 3. **Use the latest version of App Bridge on every page of your app**  
-   - **Status: ❌** The **main app UI** (app home, Run scan, Recommendations, Support/Privacy/Refund) is served by the **backend** as plain HTML. Those pages do **not** include App Bridge.  
+   - **Status: ✅** The backend injects the required App Bridge script (`https://cdn.shopify.com/shopifycloud/app-bridge.js`) and `shopify-api-key` meta tag into the `<head>` of every embedded page (app home, Run scan, Recommendations, Privacy, Refund, Support), before any other scripts, per Shopify’s March 2024 requirement.  
    - The **admin** app (Next.js + Polaris) has `@shopify/app-bridge-react` and is embedded when `apiKey` and `isEmbedded` are set, but the **App URL** in Partners is almost certainly the **backend** URL. So the “every page” that merchants see in the iframe has no App Bridge.  
    - To meet this you’d either: (a) switch the App URL to the admin app and ensure every route uses App Bridge, or (b) add App Bridge (and session token) to the backend-served pages (e.g. inject the script and use it for auth/nav).
 

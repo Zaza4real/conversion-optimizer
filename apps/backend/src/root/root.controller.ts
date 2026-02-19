@@ -164,6 +164,13 @@ export class RootController {
       .replace(/'/g, '&#39;');
   }
 
+  /** App Bridge script from Shopify CDN (required for embedded app checks). Must be first in <head>. */
+  private getAppBridgeHead(): string {
+    const apiKey = this.config.get<string>('SHOPIFY_API_KEY')?.trim();
+    if (!apiKey) return '';
+    return `<meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
+  }
+
   private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
@@ -207,6 +214,7 @@ export class RootController {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
+  ${this.getAppBridgeHead()}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -284,7 +292,7 @@ export class RootController {
     const recsEsc = recsUrl.replace(/'/g, "\\'");
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Run scan — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head>${this.getAppBridgeHead()}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Run scan — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
 <body>
   <div class="container">
     <header class="page-header page-header-with-logo">
@@ -343,7 +351,7 @@ export class RootController {
   private getRecommendationsPageHtml(shop: string, apiUrl: string, homeUrl: string): string {
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Recommendations — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head>${this.getAppBridgeHead()}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Recommendations — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
 <body>
   <div class="container">
     <header class="page-header page-header-with-logo">
@@ -467,6 +475,7 @@ export class RootController {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
+  ${this.getAppBridgeHead()}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — Conversion Optimizer</title>
@@ -538,6 +547,7 @@ export class RootController {
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
+  ${this.getAppBridgeHead()}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Support — Conversion Optimizer</title>
