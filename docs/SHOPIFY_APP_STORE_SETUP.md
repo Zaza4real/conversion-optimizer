@@ -26,6 +26,7 @@ Replace `YOUR_APP_URL` everywhere with your real backend URL (e.g. `https://conv
 | `SHOPIFY_SCOPES` | No | Default: `read_products,read_orders,read_themes` |
 | `BILLING_TEST` | No | Set to `true` for test billing during development |
 | `NODE_ENV` | No | Set to `production` in production |
+| `APP_STORE_LISTING_URL` | No | Your app’s public listing URL (e.g. `https://apps.shopify.com/your-app-handle`). When set, the app footer shows “Leave a review” to encourage ratings. |
 
 ---
 

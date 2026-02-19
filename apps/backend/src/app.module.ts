@@ -11,6 +11,7 @@ import { ScanModule } from './scan/scan.module';
 import { RecommendationsModule } from './recommendations/recommendations.module';
 import { RootModule } from './root/root.module';
 import { BillingModule } from './billing/billing.module';
+import { LandingModule } from './landing/landing.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { BillingModule } from './billing/billing.module';
     RecommendationsModule,
     BillingModule,
     RootModule,
+    LandingModule,
   ],
 })
 export class AppModule {}

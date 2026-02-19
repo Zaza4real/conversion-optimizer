@@ -49,6 +49,22 @@ export class RootController {
     res.send(this.getPolicyHtml('Refund & Cancellation Policy', this.getRefundContent()));
   }
 
+  /** GET /support — Support and contact page (Pro 24/7 support). */
+  @Get('support')
+  support(@Res() res: Response) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(this.getSupportPageHtml());
+  }
+
+  /** GET /landing — Premium marketing landing page for the app (store owners, not product catalog). */
+  @Get('landing')
+  landing(@Req() req: Request, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    const baseUrl = this.getBaseUrl(req);
+    const appStoreUrl = this.config.get<string>('APP_STORE_LISTING_URL') || '#';
+    res.send(this.getLandingPageHtml(baseUrl, appStoreUrl));
+  }
+
   /** GET /scan/run?shop=... — Styled page: run scan and show result (no raw JSON). */
   @Get('scan/run')
   scanRunPage(@Req() req: Request, @Res() res: Response) {
@@ -102,7 +118,10 @@ export class RootController {
     }
 
     if (!shop) {
-      res.status(400).send('Missing shop parameter. Use /api/auth?shop=your-store.myshopify.com');
+      const baseUrl = this.getBaseUrl(req);
+      const appStoreUrl = this.config.get<string>('APP_STORE_LISTING_URL') || '#';
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(this.getLandingPageHtml(baseUrl, appStoreUrl));
       return;
     }
     const normalized = this.normalizeShop(shop);
@@ -129,7 +148,8 @@ export class RootController {
     const billingError = String(req.query.billing_error) === '1';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError));
+    const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl));
   }
 
   private escapeHtml(s: string): string {
@@ -141,7 +161,7 @@ export class RootController {
       .replace(/'/g, '&#39;');
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -159,9 +179,11 @@ export class RootController {
     const billingBanner = billingError
       ? '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>'
       : '';
-    const ctaCard = hasPlan
+    const billingCard = hasPlan
       ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
-      : `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text" style="margin-bottom:16px;">Choose a plan. All include store scan, recommendations, and CSV export.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn ${p.popular ? 'btn-primary' : 'btn-secondary'}">Subscribe</a></div>`).join('')}</div></div>`;
+      : '';
+    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text" style="margin-bottom:16px;">${hasPlan ? 'Change plan or manage billing below. ' : ''}All include store scan, recommendations, and CSV export.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn ${p.popular ? 'btn-primary' : 'btn-secondary'}">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div>`).join('')}</div></div>`;
+    const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
       ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary">Run scan</a><span class="action-desc">Analyze your store and generate CRO recommendations</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-secondary">View recommendations</a><span class="action-desc">See your CRO recommendations in a clear list</span></div></div></div>`
@@ -233,7 +255,7 @@ export class RootController {
     ${ctaCard}
     ${actionsCard}
     <footer class="footer">
-      <a href="${statusUrl}" target="_top">Billing status</a>
+      <a href="${statusUrl}" target="_top">Billing status</a>${appStoreListingUrl ? ` &middot; <a href="${this.escapeHtml(appStoreListingUrl)}" target="_blank" rel="noopener">Leave a review</a>` : ''}
     </footer>
   </div>
 </body>
@@ -395,12 +417,38 @@ export class RootController {
   }
 
   private getPolicyHtml(title: string, bodyHtml: string): string {
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const backUrl = baseUrl ? `${baseUrl}/` : '#';
     return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title} — Conversion Optimizer</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#202223;max-width:640px;margin:0 auto;padding:32px 24px;} h1{font-size:20px;margin:0 0 24px 0;} h2{font-size:14px;margin:24px 0 8px 0;} p{margin:0 0 12px 0;font-size:14px;} ul{margin:0 0 12px 0;padding-left:20px;}</style>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title} — Conversion Optimizer</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:16px;line-height:1.65;color:#0f172a;background:#fafbfc;min-height:100vh;padding:40px 24px 64px}
+    .wrap{max-width:640px;margin:0 auto}
+    .back{margin-bottom:24px}
+    .back a{font-size:14px;color:#008060;text-decoration:none;font-weight:500}
+    .back a:hover{text-decoration:underline}
+    .card{background:#fff;border-radius:14px;padding:40px 36px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e5e7eb}
+    h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin:0 0 28px;color:#0f172a}
+    h2{font-size:14px;font-weight:600;margin:28px 0 10px;color:#0f172a}
+    p{margin:0 0 14px;font-size:15px;color:#334155}
+    ul{margin:0 0 14px;padding-left:22px;color:#334155;font-size:15px}
+    li{margin-bottom:6px}
+  </style>
 </head>
-<body><h1>${title}</h1>${bodyHtml}</body>
+<body>
+  <div class="wrap">
+    <div class="back"><a href="${backUrl}">← Back to Conversion Optimizer</a></div>
+    <div class="card">
+      <h1>${title}</h1>
+      ${bodyHtml}
+    </div>
+  </div>
+</body>
 </html>`;
   }
 
@@ -433,6 +481,140 @@ export class RootController {
 <p>We do not offer prorated refunds for partial months. If you cancel, you retain access until the period you paid for ends. If you believe you were charged in error (e.g. duplicate charge), contact us and we will work with you to resolve it.</p>
 <h2>Contact</h2>
 <p>For billing or refund questions, use the support contact provided in the app listing.</p>`;
+  }
+
+  private getSupportPageHtml(): string {
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const backUrl = baseUrl ? `${baseUrl}/` : '#';
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')?.trim() || '';
+    const contactBlock = supportEmail
+      ? `<p><strong>Email:</strong> <a href="mailto:${this.escapeHtml(supportEmail)}">${this.escapeHtml(supportEmail)}</a></p><p>We aim to respond to all inquiries quickly. <strong>Pro plan</strong> subscribers get 24/7 priority support.</p>`
+      : '<p>Contact support through the email or link provided in the app listing (Shopify App Store or inside the app). <strong>Pro plan</strong> subscribers get 24/7 priority support.</p>';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support — Conversion Optimizer</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:16px;line-height:1.65;color:#0f172a;background:#fafbfc;min-height:100vh;padding:40px 24px 64px}
+    .wrap{max-width:640px;margin:0 auto}
+    .back{margin-bottom:24px}
+    .back a{font-size:14px;color:#008060;text-decoration:none;font-weight:500}
+    .back a:hover{text-decoration:underline}
+    .card{background:#fff;border-radius:14px;padding:40px 36px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e5e7eb}
+    h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin:0 0 28px;color:#0f172a}
+    h2{font-size:14px;font-weight:600;margin:28px 0 10px;color:#0f172a}
+    p{margin:0 0 14px;font-size:15px;color:#334155}
+    .pro-badge{display:inline-block;background:#f0fdf9;color:#008060;border:1px solid #ccfbf1;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:600;margin:12px 0}
+    a{color:#008060;text-decoration:none;font-weight:500}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="back"><a href="${backUrl}">← Back to Conversion Optimizer</a></div>
+    <div class="card">
+      <h1>Support</h1>
+      <p>Have questions, issues, or feedback? We're here to help.</p>
+      <div class="pro-badge">Pro plan: 24/7 priority support</div>
+      <h2>Contact us</h2>
+      ${contactBlock}
+      <h2>Common topics</h2>
+      <p><strong>Billing or plan:</strong> Cancel or change your plan from Shopify Admin → Settings → Billing. For refunds, see our <a href="${baseUrl}/refund">Refund policy</a>.</p>
+      <p><strong>Privacy or data:</strong> See our <a href="${baseUrl}/privacy">Privacy policy</a>.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  /** Premium landing page for the app — shown at GET / (no shop) and GET /landing. */
+  private getLandingPageHtml(baseUrl: string, appStoreUrl: string): string {
+    const ctaUrl = appStoreUrl && appStoreUrl !== '#' ? appStoreUrl : 'https://apps.shopify.com/';
+    const privacyUrl = `${baseUrl}/privacy`;
+    const refundUrl = `${baseUrl}/refund`;
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Conversion Optimizer analyzes your Shopify store and shows you what's wrong. Get a clear list of fixes so your store converts better and starts selling. Try the app.">
+  <link rel="icon" href="${baseUrl}/favicon.svg" type="image/svg+xml">
+  <title>Conversion Optimizer — The app that helps your store sell more</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen-Sans,Ubuntu,sans-serif;font-size:16px;line-height:1.6;color:#1a1a1a;background:#fff}
+    .wrap{max-width:720px;margin:0 auto;padding:48px 24px 64px}
+    .hero{padding:56px 0 48px;text-align:center;border-bottom:1px solid #e8e8e8}
+    .hero h1{font-size:clamp(28px,5vw,38px);font-weight:700;letter-spacing:-0.03em;margin:0 0 16px;color:#0d0d0d}
+    .hero .tagline{font-size:18px;color:#4a4a4a;margin:0 0 32px;max-width:520px;margin-left:auto;margin-right:auto}
+    .btn{display:inline-block;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer;border:none;transition:background .2s,transform .05s}
+    .btn-primary{background:#00664f;color:#fff}
+    .btn-primary:hover{background:#004d3d}
+    .btn-secondary{background:#f5f5f5;color:#1a1a1a;border:1px solid #e0e0e0}
+    .btn-secondary:hover{background:#ebebeb}
+    .section{margin:48px 0}
+    .section h2{font-size:22px;font-weight:600;letter-spacing:-0.02em;margin:0 0 20px;color:#0d0d0d}
+    .section p{color:#4a4a4a;margin:0 0 16px}
+    .section ul{margin:0 0 16px;padding-left:24px;color:#4a4a4a}
+    .section li{margin-bottom:8px}
+    .pricing{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin:24px 0}
+    .plan{background:#fafafa;border:1px solid #e8e8e8;border-radius:12px;padding:24px;text-align:center}
+    .plan-name{font-weight:600;font-size:15px;margin-bottom:4px;color:#0d0d0d}
+    .plan-price{font-size:28px;font-weight:700;letter-spacing:-0.02em;color:#00664f}
+    .plan-period{font-size:13px;color:#6b6b6b}
+    .plan-desc{font-size:13px;color:#6b6b6b;margin-top:12px;line-height:1.45}
+    .cta-box{text-align:center;padding:40px 24px;background:#f9faf9;border-radius:12px;margin:48px 0}
+    .cta-box .btn{margin-top:8px}
+    .footer{margin-top:56px;padding-top:24px;border-top:1px solid #e8e8e8;font-size:14px;color:#6b6b6b;text-align:center}
+    .footer a{color:#00664f;text-decoration:none;font-weight:500}
+    .footer a:hover{text-decoration:underline}
+    .footer span{margin:0 8px;color:#ccc}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Conversion Optimizer</h1>
+      <p class="tagline">The app that analyzes your Shopify store and shows you exactly what's wrong. Get a clear list of fixes so your store converts better and starts selling.</p>
+      <a href="${ctaUrl}" target="_blank" rel="noopener" class="btn btn-primary">Get the app</a>
+    </header>
+
+    <section class="section">
+      <h2>What it does</h2>
+      <p>We scan your store and tell you what's broken: product pages, trust signals, theme, and pricing. You get a prioritized list of recommendations—no guesswork. Fix the problems, get more traffic, and start selling.</p>
+      <ul>
+        <li><strong>Store scan</strong> — One-click analysis of your products, theme, and trust signals.</li>
+        <li><strong>Prioritized list</strong> — High, medium, and low severity so you fix what matters first.</li>
+        <li><strong>Actionable fixes</strong> — Each item explains what to change and why.</li>
+        <li><strong>Filter & export</strong> — Filter by severity; export to CSV for your team.</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>Plans</h2>
+      <p>Simple pricing. All plans include store scan, recommendations, and CSV export. Cancel anytime from your Shopify billing.</p>
+      <div class="pricing">
+        <div class="plan"><div class="plan-name">Starter</div><div class="plan-price">$9</div><span class="plan-period">/mo</span><p class="plan-desc">Scan, recommendations, filter by severity, export CSV.</p></div>
+        <div class="plan"><div class="plan-name">Growth</div><div class="plan-price">$19</div><span class="plan-period">/mo</span><p class="plan-desc">Everything in Starter. Best for growing stores.</p></div>
+        <div class="plan"><div class="plan-name">Pro</div><div class="plan-price">$29</div><span class="plan-period">/mo</span><p class="plan-desc">Everything in Growth. For teams and high-volume stores.</p></div>
+      </div>
+    </section>
+
+    <div class="cta-box">
+      <p style="margin:0 0 8px;font-size:18px;font-weight:600;color:#0d0d0d">Ready to fix your store?</p>
+      <p style="margin:0;color:#4a4a4a">Install Conversion Optimizer from the Shopify App Store and run your first scan.</p>
+      <a href="${ctaUrl}" target="_blank" rel="noopener" class="btn btn-primary">Get the app</a>
+    </div>
+
+    <footer class="footer">
+      <a href="${privacyUrl}">Privacy</a><span>|</span><a href="${refundUrl}">Refund policy</a>
+    </footer>
+  </div>
+</body>
+</html>`;
   }
 
   private getBaseUrl(req: Request): string {
