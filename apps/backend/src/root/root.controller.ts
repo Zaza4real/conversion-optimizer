@@ -182,21 +182,27 @@ export class RootController {
       ? '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>'
       : '';
     const billingCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-secondary">Manage billing</a></div>`
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a></div>`
       : '';
-    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text" style="margin-bottom:16px;">${hasPlan ? 'Change plan or manage billing below. ' : ''}All include store scan, recommendations, and CSV export.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn ${p.popular ? 'btn-primary' : 'btn-secondary'}">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary">Run scan</a><span class="action-desc">Analyze your store and generate CRO recommendations</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-secondary">View recommendations</a><span class="action-desc">See your CRO recommendations in a clear list</span></div></div></div>`
+      ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary">Run scan</a><span class="action-desc">Analyze your store and generate CRO recommendations</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-outline">View recommendations</a><span class="action-desc">See your CRO recommendations in a clear list</span></div></div></div>`
       : '<div class="card"><p class="card-text muted">Run scan and View recommendations unlock after you subscribe.</p></div>';
 
     const featuresHtml = `
-    <ul class="feature-list">
-      <li><strong>Store scan</strong> — Analyzes your products and theme and surfaces gaps.</li>
-      <li><strong>Prioritized list</strong> — High, medium, and low severity so you fix what matters first.</li>
-      <li><strong>Actionable rationales</strong> — Each recommendation explains what to change and why.</li>
-    </ul>`;
+    <div class="features-section">
+      <h2 class="section-heading">What you get</h2>
+      <p class="section-lead">One scan gives you a clear, prioritized list of fixes so your store converts better and sells more.</p>
+      <ul class="feature-list">
+        <li><strong>Store scan</strong> — We analyze your products (titles, descriptions, images, variants), theme, trust signals, and pricing so nothing is missed.</li>
+        <li><strong>Prioritized list</strong> — Every recommendation is tagged high, medium, or low severity so you fix what matters first.</li>
+        <li><strong>Actionable rationales</strong> — Each item explains exactly what to change and why it impacts conversion.</li>
+        <li><strong>Filter & export</strong> — Filter by severity and export to CSV to share with your team or work through in your own time.</li>
+        <li><strong>Ongoing value</strong> — Re-run the scan anytime after you improve your store to see progress and find the next wins.</li>
+      </ul>
+    </div>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -207,42 +213,48 @@ export class RootController {
   <title>${title}</title>
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.5; color: #202223; background: #fff; min-height: 100vh; }
-    .container { max-width: 560px; margin: 0 auto; }
-    .app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 32px; }
+    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
     .brand { display: flex; align-items: center; gap: 10px; }
     .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
     .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
     .shop-badge { font-size: 12px; color: #6d7175; font-weight: 500; }
-    .hero-line { font-size: 15px; color: #202223; margin: 0 0 24px 0; padding-bottom: 24px; border-bottom: 1px solid #e1e3e5; }
-    .hero-line strong { font-weight: 600; }
-    .feature-list { margin: 0 0 28px 0; padding-left: 20px; color: #44474a; font-size: 14px; line-height: 1.6; }
-    .feature-list li { margin-bottom: 8px; }
-    .card { background: #fafbfb; border: 1px solid #e1e3e5; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
-    .card-highlight { border-color: #008060; background: #f9fafb; }
+    .hero-line { font-size: 15px; color: #334155; margin: 0 0 28px 0; padding-bottom: 24px; border-bottom: 1px solid #e5e7eb; line-height: 1.6; }
+    .hero-line strong { font-weight: 600; color: #202223; }
+    .features-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+    .section-heading { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6d7175; margin: 0 0 8px 0; }
+    .section-lead { font-size: 14px; color: #334155; margin: 0 0 16px 0; line-height: 1.55; }
+    .feature-list { margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.65; }
+    .feature-list li { margin-bottom: 10px; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; margin-bottom: 18px; }
     .card-error { border-color: #d72c0d; background: #fef2f2; }
-    .card-title { font-size: 13px; font-weight: 600; margin: 0 0 8px 0; color: #202223; letter-spacing: 0.02em; text-transform: uppercase; }
+    .card-title { font-size: 12px; font-weight: 600; margin: 0 0 10px 0; color: #202223; letter-spacing: 0.05em; text-transform: uppercase; }
     .card-text { margin: 0 0 14px 0; color: #6d7175; font-size: 14px; }
+    .card-text.plans-intro { margin-bottom: 18px; }
     .card-text.muted { margin: 0; }
-    .btn { display: inline-block; padding: 10px 18px; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration: none; border: none; cursor: pointer; font-family: inherit; }
+    .btn { display: inline-block; padding: 11px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
     .btn-primary { background: #008060; color: #fff; }
     .btn-primary:hover { background: #006e52; }
-    .btn-secondary { background: #fff; color: #202223; border: 1px solid #c9cccf; }
-    .btn-secondary:hover { background: #f6f6f7; }
-    .plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
-    .plan-card { background: #fff; border: 1px solid #e1e3e5; border-radius: 8px; padding: 18px; }
-    .plan-card.plan-popular { border-color: #008060; background: #f9fafb; }
-    .plan-name { font-size: 13px; font-weight: 600; color: #202223; margin-bottom: 4px; }
-    .plan-price { font-size: 22px; font-weight: 600; color: #202223; }
-    .plan-period { font-size: 13px; font-weight: 400; color: #6d7175; }
-    .plan-desc { font-size: 12px; color: #6d7175; line-height: 1.4; margin: 10px 0 14px 0; }
-    .plan-card .btn { width: 100%; text-align: center; }
+    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
+    .btn-outline:hover { background: #f6f6f7; }
+    .btn-plan { width: 100%; background: #008060; color: #fff; padding: 12px 16px; }
+    .btn-plan:hover { background: #006e52; }
+    .plans-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; align-items: stretch; }
+    .plan-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; }
+    .plan-card.plan-popular { border-color: #008060; border-width: 2px; background: #fafbfc; box-shadow: 0 2px 8px rgba(0,128,96,.08); }
+    .plan-name { font-size: 14px; font-weight: 600; color: #202223; margin-bottom: 6px; }
+    .plan-price { font-size: 26px; font-weight: 700; color: #008060; letter-spacing: -0.02em; }
+    .plan-period { font-size: 14px; font-weight: 400; color: #6d7175; }
+    .plan-desc { font-size: 13px; color: #475569; line-height: 1.5; margin: 12px 0 0 0; flex: 1; }
+    .plan-btn-wrap { margin-top: 20px; }
     .action-list { display: flex; flex-direction: column; gap: 12px; }
     .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .action-desc { font-size: 13px; color: #6d7175; }
-    .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #e1e3e5; font-size: 12px; color: #6d7175; }
+    .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6d7175; }
     .footer a { color: #008060; text-decoration: none; font-weight: 500; }
     .footer a:hover { text-decoration: underline; }
+    @media (max-width: 480px) { .plans-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
