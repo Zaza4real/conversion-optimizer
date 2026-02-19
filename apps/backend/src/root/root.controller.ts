@@ -186,7 +186,9 @@ export class RootController {
     ];
 
     const billingBanner = billingError
-      ? '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>'
+      ? (hasPlan
+          ? `<div class="card card-error"><p class="card-text">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
+          : '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
     const billingCard = hasPlan
       ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a></div>`

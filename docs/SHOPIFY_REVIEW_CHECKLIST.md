@@ -128,7 +128,7 @@ Ensure there are no 500 errors, no “refused to connect” in the iframe (CSP `
 | Webhooks not registered | Register app_uninstalled and app_subscriptions_* in Partners. |
 | Compliance webhooks missing | Register customers/data_request, customers/redact, shop/redact; app returns 200 and 401 for invalid HMAC. |
 | Too many or unjustified scopes | We use read_products, read_themes; read_orders is optional and can be removed. |
-| Crashes or 500 with stack trace | Auth and billing validate input; missing config returns 503. Nest default error handler may still return JSON errors; ensure NODE_ENV=production if you want to hide stack traces. |
+| Crashes or 500 with stack trace | Set NODE_ENV=production on Railway. To hide stack traces in JSON error responses, you can re-enable the global exception filter in `main.ts` (see `src/common/filters/http-exception.filter.ts`). |
 
 ---
 

@@ -24,8 +24,10 @@ export class BillingController {
    */
   @Get('status')
   async status(@Query('shop') shop: string | undefined) {
+    const billingTestRaw = this.config.get<string>('BILLING_TEST') ?? '';
+    const testMode = /^(true|1)$/i.test(String(billingTestRaw).trim());
     if (!shop?.trim()) {
-      return { subscribed: false, error: 'Missing shop' };
+      return { subscribed: false, error: 'Missing shop', testMode };
     }
     const normalized = this.normalizeShop(shop.trim());
     try {
@@ -33,9 +35,9 @@ export class BillingController {
       const subscribed = this.shops.hasPaidPlan(s);
       const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
       const upgradeUrl = baseUrl ? `${baseUrl}/api/billing/subscribe?shop=${encodeURIComponent(s.domain)}` : undefined;
-      return { subscribed, upgradeUrl: subscribed ? undefined : upgradeUrl };
+      return { subscribed, upgradeUrl: subscribed ? undefined : upgradeUrl, testMode };
     } catch {
-      return { subscribed: false, error: 'Shop not found' };
+      return { subscribed: false, error: 'Shop not found', testMode };
     }
   }
 

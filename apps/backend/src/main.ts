@@ -4,12 +4,16 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { RequestMethod } from '@nestjs/common';
 import * as path from 'path';
 import * as express from 'express';
+import * as compression from 'compression';
 import type { Request, Response, NextFunction } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // keep raw body for webhook HMAC
   });
+
+  // Compress responses (gzip) to reduce transfer time for large HTML/JSON
+  app.use(compression());
 
   // Static assets (logo, favicon) — serve before global prefix so /logo.png, /favicon.png work
   const publicDir = path.join(__dirname, '..', 'public');
@@ -33,7 +37,7 @@ async function bootstrap() {
     next();
   });
 
-  // GET /, favicon, scan/run, recommendations, privacy, refund stay outside /api for app UI and policies.
+  // GET /, favicon, scan/run, recommendations, privacy, refund, support, landing, health — outside /api for app UI and policies.
   app.setGlobalPrefix('api', {
     exclude: [
       { path: '/', method: RequestMethod.GET },
@@ -43,6 +47,7 @@ async function bootstrap() {
       { path: 'privacy', method: RequestMethod.GET },
       { path: 'refund', method: RequestMethod.GET },
       { path: 'support', method: RequestMethod.GET },
+      { path: 'landing', method: RequestMethod.GET },
       { path: 'health', method: RequestMethod.GET },
     ],
   });

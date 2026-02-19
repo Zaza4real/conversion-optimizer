@@ -55,12 +55,14 @@ export class BillingService {
       throw new BadRequestException('SHOPIFY_APP_URL is not configured');
     }
     const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}&plan=${encodeURIComponent(planKey)}`;
-    // Use test charges when BILLING_TEST=true (e.g. when testing on a development store).
+    // Use test charges when BILLING_TEST is set (e.g. when testing on a development store).
     // Development stores cannot accept real charges; they only accept test subscriptions.
-    const billingTest = this.config.get<string>('BILLING_TEST') === 'true';
+    const billingTestRaw = this.config.get<string>('BILLING_TEST') ?? process.env.BILLING_TEST ?? '';
+    const billingTest = /^(true|1)$/i.test(String(billingTestRaw).trim());
     const isTest = billingTest;
+    console.log('[Billing] BILLING_TEST env:', JSON.stringify(billingTestRaw), '→ test:', isTest);
     if (isTest) {
-      console.warn('[Billing] Creating TEST subscription (BILLING_TEST=true). Set BILLING_TEST=false for real charges.');
+      console.warn('[Billing] Creating TEST subscription. Set BILLING_TEST=false for real charges.');
     } else {
       console.log('[Billing] Creating real subscription (test=false).');
     }
