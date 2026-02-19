@@ -1,0 +1,29 @@
+# Conversion Optimizer — app config for Shopify CLI (webhooks, etc.)
+# Run: shopify app config link   (link to your existing ConversionOptimizer app)
+# Then: shopify app deploy      (push this config so compliance webhooks are registered)
+# Replace APPLICATION_URL below with your real backend URL if different.
+
+name = "ConversionOptimizer"
+# client_id is filled when you run: shopify app config link
+application_url = "https://conversion-optimizer-api-production.up.railway.app"
+
+[access_scopes]
+scopes = "read_products,read_orders,read_themes"
+
+[webhooks]
+api_version = "2024-01"
+
+# Mandatory compliance webhooks (required for App Store)
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request"]
+uri = "/api/webhooks/shopify/customers/data_request"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/redact"]
+uri = "/api/webhooks/shopify/customers/redact"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["shop/redact"]
+uri = "/api/webhooks/shopify/shop/redact"
+
+# Event webhooks (app_uninstalled, etc.) — add in Partners or via Dashboard if needed

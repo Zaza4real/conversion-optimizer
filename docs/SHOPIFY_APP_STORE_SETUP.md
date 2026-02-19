@@ -121,7 +121,8 @@ The app serves policy pages. Use these URLs in **App setup → Policies**:
 
 ### App listing
 
-- **Copy and pricing:** Use [APP_STORE_LISTING.md](./APP_STORE_LISTING.md) for tagline, description, features, and pricing table.
+- **Submission form (all sections):** Use [APP_SUBMISSION_STORE_GUIDE.md](./APP_SUBMISSION_STORE_GUIDE.md) to fill Basic info, Listing content, Pricing, Discovery, Install requirements, Tracking, Contact, and App testing.
+- **Copy and pricing (reference):** [APP_STORE_LISTING.md](./APP_STORE_LISTING.md) for tagline, description, features, and pricing table.
 - **Detailed review checklist:** Use [SHOPIFY_REVIEW_CHECKLIST.md](./SHOPIFY_REVIEW_CHECKLIST.md) for scopes, billing, and common rejection reasons.
 
 ---
