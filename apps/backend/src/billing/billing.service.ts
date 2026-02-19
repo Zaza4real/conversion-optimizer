@@ -55,7 +55,13 @@ export class BillingService {
       throw new BadRequestException('SHOPIFY_APP_URL is not configured');
     }
     const returnUrl = `${baseUrl}/api/billing/return?shop=${encodeURIComponent(normalized)}&plan=${encodeURIComponent(planKey)}`;
-    const isTest = this.config.get<string>('BILLING_TEST') === 'true';
+    // In production, always create real charges. Test charges only when BILLING_TEST=true and not in production.
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    const billingTest = this.config.get<string>('BILLING_TEST') === 'true';
+    const isTest = !isProduction && billingTest;
+    if (isProduction && billingTest) {
+      console.warn('[Billing] BILLING_TEST is true in production; ignoring and creating real charge so customers are charged.');
+    }
 
     const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean) {
   appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
