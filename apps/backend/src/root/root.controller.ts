@@ -400,7 +400,7 @@ export class RootController {
       <h1 class="card-confirm-title">Confirm your subscription</h1>
       <p class="card-confirm-plan">${this.escapeHtml(planName)} — $${price}/month</p>
       <p class="card-confirm-desc">You will be redirected to Shopify to complete the payment securely. Your subscription will appear on your next Shopify bill.</p>
-      <p class="card-confirm-note">You can cancel anytime from your Shopify Admin under Settings → Billing. No long-term commitment required.</p>
+      <p class="card-confirm-note">You can cancel anytime from the app (Cancel subscription on the app home) or in Shopify Admin under Settings → Billing. No long-term commitment required.</p>
       <div class="btn-wrap">
         <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to checkout</a>
         <a href="${homeUrl}" target="_top" class="btn btn-outline">Back to plans</a>

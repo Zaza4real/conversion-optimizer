@@ -60,11 +60,11 @@ export class BillingService {
     const billingTestRaw = this.config.get<string>('BILLING_TEST') ?? process.env.BILLING_TEST ?? '';
     const billingTest = /^(true|1)$/i.test(String(billingTestRaw).trim());
     const isTest = billingTest;
-    console.log('[Billing] BILLING_TEST env:', JSON.stringify(billingTestRaw), '→ test:', isTest);
-    if (isTest) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Billing] BILLING_TEST:', billingTestRaw, '→ test:', isTest);
+    }
+    if (isTest && process.env.NODE_ENV === 'production') {
       console.warn('[Billing] Creating TEST subscription. Set BILLING_TEST=false for real charges.');
-    } else {
-      console.log('[Billing] Creating real subscription (test=false).');
     }
 
     const mutation = `mutation AppSubscriptionCreate($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $test: Boolean, $replacementBehavior: AppSubscriptionReplacementBehavior) {

@@ -6,11 +6,15 @@ import * as path from 'path';
 import * as express from 'express';
 import * as compression from 'compression';
 import type { Request, Response, NextFunction } from 'express';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // keep raw body for webhook HMAC
   });
+
+  // Production: never send stack traces in JSON (App Store review + security)
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Compress responses (gzip) to reduce transfer time for large HTML/JSON
   app.use(compression());

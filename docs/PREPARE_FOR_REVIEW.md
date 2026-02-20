@@ -8,7 +8,7 @@ Use this **right before and during** App Store review. Full criteria are in **SH
 
 - **Build:** Backend and admin build successfully (`pnpm run build`).
 - **Routes:** `/landing` is correctly excluded from the `/api` prefix so the marketing landing page loads.
-- **Response speed:** Gzip compression is enabled so large HTML/JSON responses transfer faster. A global exception filter was removed to avoid any per-request overhead; re-enable it in `main.ts` if you need to hide stack traces in 500 responses for review.
+- **Response speed:** Gzip compression is enabled. A global exception filter is enabled so production never sends stack traces in JSON (required for App Store review and security).
 - **Billing:** Test mode works with `BILLING_TEST=true`; plan upgrades use `replacementBehavior: APPLY_IMMEDIATELY`. Clear error messages when plan change fails and the merchant already has a plan.
 - **Policies:** `/privacy`, `/refund`, `/support`, `/health` are served and linked from the app.
 
