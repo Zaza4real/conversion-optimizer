@@ -15,9 +15,9 @@ async function bootstrap() {
   // Compress responses (gzip) to reduce transfer time for large HTML/JSON
   app.use(compression());
 
-  // Static assets (logo, favicon) — serve before global prefix so /logo.png, /favicon.png work
+  // Static assets (logo, favicon) — cache 1 day so repeat loads are faster
   const publicDir = path.join(__dirname, '..', 'public');
-  app.use(express.static(publicDir));
+  app.use(express.static(publicDir, { maxAge: '1d' }));
 
   // Allow this app to be embedded in Shopify Admin iframe (fixes "refused to connect").
   // Shopify requires frame-ancestors to include the shop domain and admin.shopify.com.

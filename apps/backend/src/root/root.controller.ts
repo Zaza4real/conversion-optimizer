@@ -189,7 +189,7 @@ export class RootController {
   private getAppBridgeHead(): string {
     const apiKey = this.config.get<string>('SHOPIFY_API_KEY')?.trim();
     if (!apiKey) return '';
-    return `<meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
+    return `<link rel="preconnect" href="https://cdn.shopify.com"><meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
   }
 
   private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = ''): string {
