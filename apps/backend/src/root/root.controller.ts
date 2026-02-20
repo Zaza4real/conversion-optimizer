@@ -215,8 +215,10 @@ export class RootController {
           ? `<div class="card card-error"><p class="card-text">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
           : '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
+    const storeHandle = shop.replace(/\.myshopify\.com$/i, '');
+    const shopifyBillingUrl = `https://admin.shopify.com/store/${storeHandle}/settings/billing`;
     const billingCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a></div>`
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(shopifyBillingUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
     const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
@@ -289,6 +291,7 @@ export class RootController {
     .action-list { display: flex; flex-direction: column; gap: 12px; }
     .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     .action-desc { font-size: 13px; color: #6d7175; }
+    .billing-actions { display: flex; flex-wrap: wrap; gap: 10px; }
     .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6d7175; }
     .footer a { color: #008060; text-decoration: none; font-weight: 500; }
     .footer a:hover { text-decoration: underline; }
