@@ -86,6 +86,24 @@ export class RootController {
     res.send(this.getScanRunPageHtml(normalized, apiUrl, homeUrl, recsUrl));
   }
 
+  /** GET /billing/cancel-confirm?shop=... — Confirm before cancelling subscription (then call API to cancel). */
+  @Get('billing/cancel-confirm')
+  billingCancelConfirm(@Req() req: Request, @Res() res: Response) {
+    const shop = (req.query.shop as string)?.trim();
+    if (!shop) {
+      res.status(400).send('Missing shop');
+      return;
+    }
+    const baseUrl = this.getBaseUrl(req);
+    const normalized = this.normalizeShop(shop);
+    const shopEnc = encodeURIComponent(normalized);
+    const homeUrl = `${baseUrl}/?shop=${shopEnc}`;
+    const cancelUrl = `${baseUrl}/api/billing/cancel?shop=${shopEnc}`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(this.getBillingCancelConfirmHtml(baseUrl, homeUrl, cancelUrl));
+  }
+
   /** GET /billing/confirm?shop=...&plan=growth|pro — Professional confirmation before redirecting to Shopify checkout. */
   @Get('billing/confirm')
   billingConfirm(@Req() req: Request, @Res() res: Response) {
@@ -170,10 +188,12 @@ export class RootController {
     const billingError = String(req.query.billing_error) === '1';
     const billingSuccess = String(req.query.billing_success) === '1';
     const planJustPurchased = (req.query.plan as string)?.trim() || '';
+    const cancelled = String(req.query.cancelled) === '1';
+    const billingCancelError = String(req.query.billing_cancel_error) === '1';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError));
   }
 
   private escapeHtml(s: string): string {
@@ -192,7 +212,7 @@ export class RootController {
     return `<link rel="preconnect" href="https://cdn.shopify.com"><meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = ''): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -201,6 +221,7 @@ export class RootController {
     const recsPageUrl = `${baseUrl}/recommendations?shop=${shopEnc}`;
     const subscribeBase = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}`;
     const confirmBase = `${baseUrl}/billing/confirm?shop=${shopEnc}`;
+    const cancelConfirmUrl = `${baseUrl}/billing/cancel-confirm?shop=${shopEnc}`;
 
     const plansDisplay = [
       { key: 'growth', name: 'Growth', price: 19, desc: 'Full access: store scan, recommendations, filter by severity, export CSV. Best for growing stores.' },
@@ -210,17 +231,21 @@ export class RootController {
     const billingSuccessBanner = billingSuccess
       ? this.getThankYouBanner(planJustPurchased)
       : '';
+    const cancelledBanner = cancelled
+      ? '<div class="card card-success"><p class="card-text">Your subscription has been cancelled. You have access until the end of your current billing period.</p></div>'
+      : '';
+    const billingCancelErrorBanner = billingCancelError
+      ? '<div class="card card-error"><p class="card-text">We couldn\'t cancel your subscription. Please try again or contact support.</p></div>'
+      : '';
     const billingBanner = billingError
       ? (hasPlan
           ? `<div class="card card-error"><p class="card-text">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
           : '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
-    const storeHandle = shop.replace(/\.myshopify\.com$/i, '');
-    const shopifyBillingUrl = `https://admin.shopify.com/store/${storeHandle}/settings/billing`;
     const billingCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(shopifyBillingUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
+      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
@@ -305,6 +330,8 @@ export class RootController {
       <span class="shop-badge">${shopSafe}</span>
     </header>
     ${billingSuccessBanner}
+    ${cancelledBanner}
+    ${billingCancelErrorBanner}
     ${billingBanner}
     <p class="hero-line"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store. Run a scan, then work through recommendations by severity.</p>
     ${featuresHtml}
@@ -377,6 +404,53 @@ export class RootController {
       <div class="btn-wrap">
         <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to checkout</a>
         <a href="${homeUrl}" target="_top" class="btn btn-outline">Back to plans</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  private getBillingCancelConfirmHtml(baseUrl: string, homeUrl: string, cancelUrl: string): string {
+    const title = 'Conversion Optimizer';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  ${this.getAppBridgeHead()}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Cancel subscription — ${title}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
+    .container { max-width: 520px; margin: 0 auto; }
+    .confirm-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
+    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .card-confirm-title { font-size: 18px; font-weight: 600; color: #202223; margin: 0 0 8px 0; }
+    .card-confirm-desc { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0; }
+    .btn-wrap { display: flex; flex-direction: column; gap: 12px; }
+    .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
+    .btn-primary { background: #d72c0d; color: #fff; }
+    .btn-primary:hover { background: #b71c0d; }
+    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
+    .btn-outline:hover { background: #f6f6f7; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="confirm-header">
+      <img src="/logo.svg" alt="" class="app-logo-icon">
+      <span class="app-wordmark">${title}</span>
+    </header>
+    <div class="card">
+      <h1 class="card-confirm-title">Cancel your subscription?</h1>
+      <p class="card-confirm-desc">You'll keep access until the end of your current billing period. After that, you won't be charged and you can resubscribe anytime.</p>
+      <div class="btn-wrap">
+        <a href="${cancelUrl}" target="_top" class="btn btn-primary">Yes, cancel my subscription</a>
+        <a href="${homeUrl}" target="_top" class="btn btn-outline">Keep my subscription</a>
       </div>
     </div>
   </div>

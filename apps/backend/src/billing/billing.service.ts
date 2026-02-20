@@ -167,6 +167,56 @@ export class BillingService {
     return match ? parseInt(match[1], 10) : parseInt(s, 10) || 0;
   }
 
+  /**
+   * Cancel the shop's active app subscription via GraphQL. Stops future billing; merchant keeps access until period end.
+   * Clears our billing state after successful cancel.
+   */
+  async cancelSubscription(shopDomain: string): Promise<void> {
+    const normalized = this.normalizeDomain(shopDomain);
+    const shop = await this.shops.getByDomain(normalized);
+    if (!shop.recurringChargeId?.trim()) {
+      throw new BadRequestException('No active subscription to cancel.');
+    }
+    const accessToken = this.shops.getAccessToken(shop);
+    const subscriptionId = shop.recurringChargeId.replace(/\D/g, '') || shop.recurringChargeId;
+    const gid = `gid://shopify/AppSubscription/${subscriptionId}`;
+
+    const mutation = `mutation AppSubscriptionCancel($id: ID!) {
+  appSubscriptionCancel(id: $id) {
+    userErrors { field message }
+    appSubscription { id status }
+  }
+}`;
+    const url = `https://${normalized}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query: mutation, variables: { id: gid } }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error('[Billing] cancelSubscription failed', res.status, text);
+      throw new BadRequestException('Unable to cancel subscription. Please try again or cancel from Shopify Settings → Billing.');
+    }
+
+    const data = (await res.json()) as {
+      data?: { appSubscriptionCancel?: { userErrors?: { message?: string }[] }; };
+      errors?: { message?: string }[];
+    };
+    const errors = data.errors ?? data.data?.appSubscriptionCancel?.userErrors ?? [];
+    if (errors.length) {
+      const msg = errors.map((e: { message?: string }) => e?.message ?? '').filter(Boolean).join('; ') || 'Subscription could not be cancelled.';
+      console.error('[Billing] cancelSubscription errors', msg);
+      throw new BadRequestException(msg);
+    }
+
+    await this.shops.clearBilling(normalized);
+  }
+
   private async getActiveSubscriptions(shopDomain: string, accessToken: string): Promise<string[]> {
     const query = `query {
   currentAppInstallation {

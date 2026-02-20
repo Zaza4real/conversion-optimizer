@@ -102,6 +102,31 @@ export class BillingController {
     res.redirect(302, redirectTo);
   }
 
+  /**
+   * GET /api/billing/cancel?shop=...
+   * Cancels the shop's subscription via Shopify API and redirects back to app home.
+   */
+  @Get('cancel')
+  async cancel(
+    @Query('shop') shop: string | undefined,
+    @Res() res: Response,
+  ) {
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    if (!shop?.trim()) {
+      res.redirect(302, baseUrl ? `${baseUrl}/?billing_cancel_error=1` : '/');
+      return;
+    }
+    const normalized = this.normalizeShop(shop.trim());
+    const homeUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}` : `https://${normalized}/admin`;
+    try {
+      await this.billing.cancelSubscription(normalized);
+      res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}&cancelled=1`);
+    } catch (err) {
+      logBillingError('cancel', err);
+      res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
+    }
+  }
+
   private normalizeShop(shop: string): string {
     const s = shop.toLowerCase().trim().replace(/%2E/g, '.').replace(/^https?:\/\//, '').split('/')[0];
     return s.includes('.myshopify.com') ? s : `${s}.myshopify.com`;
