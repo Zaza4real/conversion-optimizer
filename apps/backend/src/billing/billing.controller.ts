@@ -94,10 +94,10 @@ export class BillingController {
       res.status(400).send('Billing activation failed. Please try again or contact support.');
       return;
     }
-    // Redirect back to the app root (Shopify will load the app in admin).
+    // Redirect back to the app with thank-you state (Shopify will load the app in admin).
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     const redirectTo = baseUrl
-      ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}`
+      ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}&billing_success=1&plan=${encodeURIComponent(planKey)}`
       : `https://${normalizedShop}/admin`;
     res.redirect(302, redirectTo);
   }

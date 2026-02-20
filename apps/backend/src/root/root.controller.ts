@@ -86,6 +86,25 @@ export class RootController {
     res.send(this.getScanRunPageHtml(normalized, apiUrl, homeUrl, recsUrl));
   }
 
+  /** GET /billing/confirm?shop=...&plan=growth|pro — Professional confirmation before redirecting to Shopify checkout. */
+  @Get('billing/confirm')
+  billingConfirm(@Req() req: Request, @Res() res: Response) {
+    const shop = (req.query.shop as string)?.trim();
+    const plan = (req.query.plan as string)?.toLowerCase().trim();
+    if (!shop || !plan) {
+      res.status(400).send('Missing shop or plan');
+      return;
+    }
+    const baseUrl = this.getBaseUrl(req);
+    const normalized = this.normalizeShop(shop);
+    const shopEnc = encodeURIComponent(normalized);
+    const homeUrl = `${baseUrl}/?shop=${shopEnc}`;
+    const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}&plan=${encodeURIComponent(plan)}`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(this.getBillingConfirmHtml(plan, baseUrl, homeUrl, subscribeUrl));
+  }
+
   /** GET /recommendations?shop=... — Styled page: fetch and display recommendations (no raw JSON). */
   @Get('recommendations')
   recommendationsPage(@Req() req: Request, @Res() res: Response) {
@@ -149,10 +168,12 @@ export class RootController {
     const hasPlan = this.shops.hasPaidPlan(existing);
     const currentPlanLabel = this.shops.getPlanLabel(existing);
     const billingError = String(req.query.billing_error) === '1';
+    const billingSuccess = String(req.query.billing_success) === '1';
+    const planJustPurchased = (req.query.plan as string)?.trim() || '';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased));
   }
 
   private escapeHtml(s: string): string {
@@ -171,7 +192,7 @@ export class RootController {
     return `<meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = ''): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -179,12 +200,16 @@ export class RootController {
     const scanRunUrl = `${baseUrl}/scan/run?shop=${shopEnc}`;
     const recsPageUrl = `${baseUrl}/recommendations?shop=${shopEnc}`;
     const subscribeBase = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}`;
+    const confirmBase = `${baseUrl}/billing/confirm?shop=${shopEnc}`;
 
     const plansDisplay = [
       { key: 'growth', name: 'Growth', price: 19, desc: 'Full access: store scan, recommendations, filter by severity, export CSV. Best for growing stores.' },
       { key: 'pro', name: 'Pro', price: 29, desc: 'Premium with 24/7 support. Everything in Growth, plus priority help and dedicated support for teams and high-volume stores.', popular: true },
     ];
 
+    const billingSuccessBanner = billingSuccess
+      ? this.getThankYouBanner(planJustPurchased)
+      : '';
     const billingBanner = billingError
       ? (hasPlan
           ? `<div class="card card-error"><p class="card-text">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
@@ -193,7 +218,7 @@ export class RootController {
     const billingCard = hasPlan
       ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a></div>`
       : '';
-    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${subscribeBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
@@ -239,6 +264,9 @@ export class RootController {
     .feature-list li { margin-bottom: 10px; }
     .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; margin-bottom: 18px; }
     .card-error { border-color: #d72c0d; background: #fef2f2; }
+    .card-success { border-color: #86efac; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); padding: 24px; }
+    .card-success-icon { width: 36px; height: 36px; border-radius: 50%; background: #22c55e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .card-success-title { color: #166534; font-size: 14px; letter-spacing: 0.02em; }
     .card-title { font-size: 12px; font-weight: 600; margin: 0 0 10px 0; color: #202223; letter-spacing: 0.05em; text-transform: uppercase; }
     .card-text { margin: 0 0 14px 0; color: #6d7175; font-size: 14px; }
     .card-text.plans-intro { margin-bottom: 18px; }
@@ -273,6 +301,7 @@ export class RootController {
       <div class="brand"><img src="/logo.svg" alt="" class="app-logo-icon"><span class="app-wordmark">${title}</span></div>
       <span class="shop-badge">${shopSafe}</span>
     </header>
+    ${billingSuccessBanner}
     ${billingBanner}
     <p class="hero-line"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store. Run a scan, then work through recommendations by severity.</p>
     ${featuresHtml}
@@ -281,6 +310,72 @@ export class RootController {
     <footer class="footer">
       <a href="${statusUrl}" target="_top">Billing status</a>${appStoreListingUrl ? ` &middot; <a href="${this.escapeHtml(appStoreListingUrl)}" target="_blank" rel="noopener">Leave a review</a>` : ''}
     </footer>
+  </div>
+</body>
+</html>`;
+  }
+
+  private getThankYouBanner(planKey: string): string {
+    const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
+    return `
+    <div class="card card-success">
+      <div class="card-success-icon" aria-hidden="true">✓</div>
+      <h2 class="card-title card-success-title">Thank you for your purchase</h2>
+      <p class="card-text">Your <strong>${this.escapeHtml(planName)}</strong> plan is now active. You have full access to store scans and recommendations. We're glad to have you on board.</p>
+    </div>`;
+  }
+
+  private getBillingConfirmHtml(planKey: string, baseUrl: string, homeUrl: string, subscribeUrl: string): string {
+    const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
+    const price = planKey === 'pro' ? 29 : planKey === 'starter' ? 9 : 19;
+    const title = 'Conversion Optimizer';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  ${this.getAppBridgeHead()}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Confirm subscription — ${this.escapeHtml(planName)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
+    .container { max-width: 520px; margin: 0 auto; }
+    .confirm-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
+    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
+    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .card-confirm-title { font-size: 18px; font-weight: 600; color: #202223; margin: 0 0 8px 0; }
+    .card-confirm-plan { font-size: 22px; font-weight: 700; color: #008060; margin: 0 0 16px 0; }
+    .card-confirm-desc { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0; }
+    .card-confirm-note { font-size: 13px; color: #6d7175; background: #f9fafb; padding: 14px 16px; border-radius: 8px; margin-bottom: 24px; line-height: 1.5; }
+    .btn-wrap { display: flex; flex-direction: column; gap: 12px; }
+    .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
+    .btn-primary { background: #008060; color: #fff; }
+    .btn-primary:hover { background: #006e52; }
+    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
+    .btn-outline:hover { background: #f6f6f7; }
+    .card-success { border-color: #86efac; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); }
+    .card-success-icon { width: 40px; height: 40px; border-radius: 50%; background: #22c55e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+    .card-success-title { color: #166534; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="confirm-header">
+      <img src="/logo.svg" alt="" class="app-logo-icon">
+      <span class="app-wordmark">${title}</span>
+    </header>
+    <div class="card">
+      <h1 class="card-confirm-title">Confirm your subscription</h1>
+      <p class="card-confirm-plan">${this.escapeHtml(planName)} — $${price}/month</p>
+      <p class="card-confirm-desc">You will be redirected to Shopify to complete the payment securely. Your subscription will appear on your next Shopify bill.</p>
+      <p class="card-confirm-note">You can cancel anytime from your Shopify Admin under Settings → Billing. No long-term commitment required.</p>
+      <div class="btn-wrap">
+        <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to checkout</a>
+        <a href="${homeUrl}" target="_top" class="btn btn-outline">Back to plans</a>
+      </div>
+    </div>
   </div>
 </body>
 </html>`;
