@@ -429,7 +429,7 @@ export class RootController {
             btn.textContent = 'Start scan';
             result.style.display = 'block';
             result.className = 'success-card';
-            result.innerHTML = '<p class="title">Scan queued</p><p class="next">Your store is being analyzed. Open View recommendations in a moment to see your prioritized list.</p><a href="' + recsUrl + '" target="_top" class="btn btn-primary">View recommendations</a>';
+            result.innerHTML = '<p class="title">Scan started</p><p class="next">Your store is being analyzed. When the scan finishes, click View recommendations below to see your prioritized list.</p><a href="' + recsUrl + '" target="_top" class="btn btn-primary">View recommendations</a>';
           })
           .catch(function(err) {
             btn.disabled = false;
