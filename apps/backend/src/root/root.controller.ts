@@ -578,12 +578,21 @@ export class RootController {
         });
         var exportBtn = document.getElementById('exportBtn');
         if (exportBtn) exportBtn.onclick = function() {
-          var csv = 'Title,Category,Severity,Rationale,Expected impact\\n';
-          list.forEach(function(r) {
+          var q = function(s) { return '"' + (s == null ? '' : String(s)).replace(/"/g, '""').replace(/\\n/g, ' ').replace(/\\r/g, ' ') + '"'; };
+          var exportedAt = new Date().toISOString().slice(0, 10);
+          var csv = '\uFEFF'; // UTF-8 BOM for Excel
+          csv += q('Conversion Optimizer — CRO Recommendations Report') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
+          csv += q('Exported') + ',' + q(exportedAt) + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
+          csv += q('How to use') + ',' + q('Address High priority first, then Medium, then Low. Use the Rationale column for implementation guidance. Expected impact is estimated conversion rate improvement when the recommendation is applied.') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
+          csv += q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
+          csv += q('#') + ',' + q('Recommendation') + ',' + q('Category') + ',' + q('Priority') + ',' + q('Rationale') + ',' + q('Expected impact') + '\\n';
+          list.forEach(function(r, idx) {
             var imp = r.expectedImpact && r.expectedImpact.metric === 'conversion_rate' && r.expectedImpact.low != null && r.expectedImpact.high != null ? '+' + (r.expectedImpact.low * 100).toFixed(1) + '–' + (r.expectedImpact.high * 100).toFixed(1) + '%' : '';
-            csv += '"' + (r.title || r.category || '').replace(/"/g, '""') + '","' + (r.category || '').replace(/"/g, '""') + '","' + (r.severity || '').replace(/"/g, '""') + '","' + (r.rationale || '').replace(/"/g, '""') + '","' + imp + '"\\n';
+            var priority = (r.severity || '').toLowerCase();
+            if (priority.indexOf('high') >= 0) priority = 'High'; else if (priority.indexOf('medium') >= 0) priority = 'Medium'; else priority = 'Low';
+            csv += (idx + 1) + ',' + q(r.title || r.category || '') + ',' + q(r.category || '') + ',' + q(priority) + ',' + q(r.rationale || '') + ',' + q(imp) + '\\n';
           });
-          var a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'conversion-recommendations.csv'; a.click();
+          var a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'conversion-optimizer-recommendations-' + exportedAt + '.csv'; a.click();
         };
       }
       fetch('${apiUrl.replace(/'/g, "\\'")}')
