@@ -8,6 +8,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "migration:run": "node -r ts-node/register ./node_modules/typeorm/cli.js migration:run -d src/config/typeorm-cli.config.ts",
+    "migration:run:index": "node run-recommendations-index-migration.js",
     "migration:generate": "node -r ts-node/register ./node_modules/typeorm/cli.js migration:generate -d src/config/typeorm-cli.config.ts",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest"

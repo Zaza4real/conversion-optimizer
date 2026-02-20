@@ -9,3 +9,5 @@ buildCommand = "npm install && npm run build"
 startCommand = "npm run start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
+# Run DB migration (recommendations index) before each deploy. Uses DATABASE_URL from Railway.
+preDeployCommand = "node run-recommendations-index-migration.js"
