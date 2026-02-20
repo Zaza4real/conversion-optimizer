@@ -8,5 +8,10 @@ export function getTypeOrmConfig(): TypeOrmModuleOptions {
     entities,
     synchronize: false,
     logging: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+    extra: {
+      max: 20,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 8000,
+    },
   };
 }

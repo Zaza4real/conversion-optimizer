@@ -1,20 +1,19 @@
-import { Controller, Post, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Param, UseGuards, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { ScanService } from './scan.service';
-import { ShopsService } from '../shops/shops.service';
-import { PaidPlanGuard } from '../billing/guards/paid-plan.guard';
+import { PaidPlanGuard, REQUEST_SHOP_KEY } from '../billing/guards/paid-plan.guard';
+import type { Shop } from '../shops/entities/shop.entity';
 
 @Controller('scan')
 export class ScanController {
-  constructor(
-    private readonly scan: ScanService,
-    private readonly shops: ShopsService,
-  ) {}
+  constructor(private readonly scan: ScanService) {}
 
   /** POST /api/scan/:shopDomain — enqueue scan for shop. Requires paid plan. */
   @Post(':shopDomain')
   @UseGuards(PaidPlanGuard)
-  async start(@Param('shopDomain') shopDomain: string) {
-    const shop = await this.shops.getByDomain(shopDomain.replace(/%2E/g, '.').toLowerCase().trim());
+  async start(@Req() req: Request & { [REQUEST_SHOP_KEY]?: Shop }) {
+    const shop = req[REQUEST_SHOP_KEY];
+    if (!shop) throw new Error('PaidPlanGuard should have set shop');
     return this.scan.enqueueScan(shop.id);
   }
 

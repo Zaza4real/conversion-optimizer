@@ -8,14 +8,19 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ShopsService } from '../../shops/shops.service';
+import type { Shop } from '../../shops/entities/shop.entity';
 
 export const PAID_PLAN_SKIP = 'paid_plan_skip';
+
+/** Request key set by PaidPlanGuard so controllers can reuse the resolved shop (avoids duplicate DB lookup). */
+export const REQUEST_SHOP_KEY = 'conversionOptimizerShop';
 
 /** Use @SkipPaidPlan() on a route to allow access without a paid plan. */
 export const SkipPaidPlan = () => SetMetadata(PAID_PLAN_SKIP, true);
 
 /**
  * Guard that ensures the request is for a shop with an active paid plan.
+ * Attaches the resolved shop to the request (REQUEST_SHOP_KEY) so controllers can reuse it.
  * Expects shop domain from param :shopDomain (e.g. scan/:shopDomain, recommendations/:shopDomain).
  */
 @Injectable()
@@ -35,6 +40,7 @@ export class PaidPlanGuard implements CanActivate {
     if (!shopDomain) return false;
     try {
       const shop = await this.shops.getByDomain(shopDomain);
+      request[REQUEST_SHOP_KEY] = shop as Shop;
       if (this.shops.hasPaidPlan(shop)) return true;
       throw new HttpException(
         {
