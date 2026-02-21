@@ -11,10 +11,19 @@ export class RecommendationsService {
   ) {}
 
   async findByShop(shopId: string, limit: number): Promise<Recommendation[]> {
-    return this.recRepo.find({
-      where: { shopId },
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+    return this.recRepo
+      .createQueryBuilder('r')
+      .select([
+        'r.id',
+        'r.category',
+        'r.ruleId',
+        'r.severity',
+        'r.rationale',
+        'r.expectedImpact',
+      ])
+      .where('r.shopId = :shopId', { shopId })
+      .orderBy('r.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
   }
 }

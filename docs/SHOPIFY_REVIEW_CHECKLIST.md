@@ -136,7 +136,29 @@ Ensure there are no 500 errors, no “refused to connect” in the iframe (CSP `
 
 Before submitting, complete in the **App Store review** flow: **Emergency contact** (email + phone), **App icon** (1200×1200 px, JPEG or PNG), **API contact email** (must not contain "Shopify" or "Example"), and **App URL/domain** (no "Shopify" or "Example").
 
-## 11. Quick verification before submit
+## 11. Match Distribution → Review requirements (Partners UI)
+
+In **Distribution → App Store**, the checklist aligns with the sections below. Use this to confirm everything is correct for review.
+
+| Section in Partners | How Conversion Optimizer meets it |
+|---------------------|-----------------------------------|
+| **Functionality** | OAuth immediately after install; redirect to app UI; OAuth after reinstall. No critical/minor errors (global exception filter). UI merchants can interact with (app home, scan, recommendations, billing). Web-based; single-merchant; Shopify APIs only. Functional test: install on dev store, subscribe, run scan, view recommendations. |
+| **App Store listing** | Test credentials: reviewers use their dev store (OAuth). Demo screencast: provide in submission (onboarding + subscribe + scan + recommendations). Online Store: indicate if required (we're admin-only; no theme extensions). Pricing: accurate in app and in listing only; no pricing in images. App icon 1200×1200; accurate tags; effective subtitle; app name similar; no reviews/stats in listing; no Shopify brand misuse; app details per guidelines; geographic/language claims accurate. |
+| **Embedded** | Consistent embedded experience (App Bridge, CSP frame-ancestors). Latest App Bridge script in `<head>`. No Max modal without interaction (we don't use admin extensions). |
+| **Online store** | N/A — app does not modify the storefront or use theme app extensions. If Partners shows this section, ensure "Merchant must have online store" is set only if your listing says so. |
+
+## 12. Performance (app speed)
+
+The app is tuned so it feels responsive for review and production:
+
+- **Compression:** Gzip for all responses (large HTML/JSON).
+- **Static assets:** Logo and favicon cached 1 day.
+- **App home:** Logo preloaded so it paints faster.
+- **Recommendations API:** Slim query (only needed columns; no `patch_payload`), indexed by `shop_id` + `created_at`.
+- **DB:** Connection pool (max 20, timeouts set); no redundant lookups on the app-home path.
+- **Loading overlay:** App Bridge loading bar is dismissed when the page is ready so the app doesn't appear stuck.
+
+## 13. Quick verification before submit
 
 - [ ] App URL and Redirect URL in Partners match `SHOPIFY_APP_URL` (no trailing slash).
 - [ ] All required env vars set in Railway (or your host).

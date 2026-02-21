@@ -185,6 +185,7 @@ export class RootController {
 
     const hasPlan = this.shops.hasPaidPlan(existing);
     const currentPlanLabel = this.shops.getPlanLabel(existing);
+    const isFreeBeta = this.shops.isFreeBetaShop(normalized);
     const billingError = String(req.query.billing_error) === '1';
     const billingSuccess = String(req.query.billing_success) === '1';
     const planJustPurchased = (req.query.plan as string)?.trim() || '';
@@ -193,7 +194,7 @@ export class RootController {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta));
   }
 
   private escapeHtml(s: string): string {
@@ -212,7 +213,12 @@ export class RootController {
     return `<link rel="preconnect" href="https://cdn.shopify.com"><meta name="shopify-api-key" content="${this.escapeHtml(apiKey)}">\n  <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false): string {
+  /** Dismiss Shopify Admin loading overlay so the app content is visible. Prevents false "crash" / "taking a while to load" overlay. */
+  private getDismissAppBridgeLoadingScript(): string {
+    return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
+  }
+
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -243,7 +249,9 @@ export class RootController {
           : '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
     const billingCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
+      ? isFreeBeta
+        ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
+        : `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
     const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
@@ -272,6 +280,7 @@ export class RootController {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/logo.svg" as="image">
   <title>${title}</title>
   <style>
     * { box-sizing: border-box; }
@@ -341,6 +350,7 @@ export class RootController {
       <a href="${statusUrl}" target="_top">Billing status</a>${appStoreListingUrl ? ` &middot; <a href="${this.escapeHtml(appStoreListingUrl)}" target="_blank" rel="noopener">Leave a review</a>` : ''}
     </footer>
   </div>
+  ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
   }
@@ -407,6 +417,7 @@ export class RootController {
       </div>
     </div>
   </div>
+  ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
   }
@@ -454,6 +465,7 @@ export class RootController {
       </div>
     </div>
   </div>
+  ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
   }
@@ -518,6 +530,7 @@ export class RootController {
       };
     })();
   </script>
+  ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
   }
@@ -617,6 +630,7 @@ export class RootController {
         });
     })();
   </script>
+  ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
   }

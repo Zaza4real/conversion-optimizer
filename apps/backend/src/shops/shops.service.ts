@@ -1,8 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shop } from './entities/shop.entity';
 import { EncryptionService } from '../common/encryption.service';
+
+/** Env: comma-separated list of shop domains (e.g. store1.myshopify.com,store2.myshopify.com). Max 10 recommended. */
+const FREE_BETA_SHOPS_KEY = 'FREE_BETA_SHOPS';
 
 @Injectable()
 export class ShopsService {
@@ -10,6 +14,7 @@ export class ShopsService {
     @InjectRepository(Shop)
     private readonly shopRepo: Repository<Shop>,
     private readonly encryption: EncryptionService,
+    private readonly config: ConfigService,
   ) {}
 
   async findByDomain(domain: string): Promise<Shop | null> {
@@ -83,14 +88,25 @@ export class ShopsService {
     }
   }
 
-  /** True if shop has an active paid subscription (any tier). */
+  /** True if shop is on the free beta allowlist (full access, no charge). */
+  isFreeBetaShop(domain: string): boolean {
+    const raw = this.config.get<string>(FREE_BETA_SHOPS_KEY) ?? process.env[FREE_BETA_SHOPS_KEY] ?? '';
+    if (!raw.trim()) return false;
+    const normalized = this.normalizeDomain(domain);
+    const list = raw.split(',').map((d) => this.normalizeDomain(d)).filter(Boolean);
+    return list.includes(normalized);
+  }
+
+  /** True if shop has an active paid subscription (any tier) or is on the free beta allowlist. */
   hasPaidPlan(shop: Shop): boolean {
+    if (this.isFreeBetaShop(shop.domain)) return true;
     const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'paid';
     return paid && shop.recurringChargeId != null;
   }
 
-  /** Current plan label for display (e.g. "Starter", "Growth", "Pro"). */
+  /** Current plan label for display (e.g. "Starter", "Growth", "Pro", "Free beta"). */
   getPlanLabel(shop: Shop): string {
+    if (this.isFreeBetaShop(shop.domain)) return 'Free beta';
     if (shop.plan === 'pro') return 'Pro';
     if (shop.plan === 'growth' || shop.plan === 'paid') return 'Growth';
     if (shop.plan === 'starter') return 'Starter';
