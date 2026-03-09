@@ -238,38 +238,39 @@ export class RootController {
       ? this.getThankYouBanner(planJustPurchased)
       : '';
     const cancelledBanner = cancelled
-      ? '<div class="card card-success"><p class="card-text">Your subscription has been cancelled. You have access until the end of your current billing period.</p></div>'
+      ? '<div class="banner banner-success"><p class="banner-title">Subscription cancelled</p><p class="banner-body">You\'ll keep full access until the end of your current billing period.</p></div>'
       : '';
     const billingCancelErrorBanner = billingCancelError
-      ? '<div class="card card-error"><p class="card-text">We couldn\'t cancel your subscription. Please try again or contact support.</p></div>'
+      ? '<div class="banner banner-error"><p class="banner-title">Cancellation failed</p><p class="banner-body">We couldn\'t cancel your subscription. Please try again or contact support.</p></div>'
       : '';
     const billingBanner = billingError
       ? (hasPlan
-          ? `<div class="card card-error"><p class="card-text">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
-          : '<div class="card card-error"><p class="card-text">Subscription could not be started. Please try again or contact support.</p></div>')
+          ? `<div class="banner banner-error"><p class="banner-title">Plan change failed</p><p class="banner-body">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
+          : '<div class="banner banner-error"><p class="banner-title">Subscription failed</p><p class="banner-body">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
     const billingCard = hasPlan
       ? isFreeBeta
-        ? `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
-        : `<div class="card"><h2 class="card-title">Billing</h2><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access to scans and recommendations.</p><p class="card-text" style="margin-bottom:14px;">You can cancel anytime; you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
+        ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
+        : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const plansCard = `<div class="card"><h2 class="card-title">Plans</h2><p class="card-text plans-intro">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Subscribe'}</a></div></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}${p.popular ? '<div class="plan-popular-badge" style="display:inline-block;margin-left:8px">Popular</div>' : ''}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Get started'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
-      ? `<div class="card"><h2 class="card-title">Actions</h2><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary">Run scan</a><span class="action-desc">Analyze your store and generate CRO recommendations</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-outline">View recommendations</a><span class="action-desc">See your CRO recommendations in a clear list</span></div></div></div>`
-      : '<div class="card"><p class="card-text muted">Run scan and View recommendations unlock after you subscribe.</p></div>';
+      ? `<div class="card"><p class="card-title">Actions</p><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 3l7 4-7 4V3z" fill="currentColor"/></svg>Run scan</a><span class="action-desc">Analyze your store and generate a prioritized CRO list</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-outline">View recommendations</a><span class="action-desc">Browse and export your prioritized recommendations</span></div></div></div>`
+      : '<div class="card"><p class="card-text muted" style="font-size:13px;">Run scan and View recommendations unlock after subscribing to a plan below.</p></div>';
 
+    const checkIcon = `<span class="feat-icon"><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 5.5l2.5 2.5 4.5-4.5" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
     const featuresHtml = `
-    <div class="features-section">
-      <h2 class="section-heading">What you get</h2>
-      <p class="section-lead">One scan gives you a clear, prioritized list of fixes so your store converts better and sells more.</p>
+    <div class="features-card">
+      <p class="section-label">What you get</p>
+      <p class="section-desc">One scan gives you a clear, prioritized list of fixes so your store converts better and sells more.</p>
       <ul class="feature-list">
-        <li><strong>Store scan</strong> — We analyze your products (titles, descriptions, images, variants), theme, trust signals, and pricing so nothing is missed.</li>
-        <li><strong>Prioritized list</strong> — Every recommendation is tagged high, medium, or low severity so you fix what matters first.</li>
-        <li><strong>Actionable rationales</strong> — Each item explains exactly what to change and why it impacts conversion.</li>
-        <li><strong>Filter & export</strong> — Filter by severity and export to CSV to share with your team or work through in your own time.</li>
-        <li><strong>Ongoing value</strong> — Re-run the scan anytime after you improve your store to see progress and find the next wins.</li>
+        <li>${checkIcon}<span><strong>Store scan</strong> — Products, titles, images, trust signals, pricing, and theme — nothing is missed.</span></li>
+        <li>${checkIcon}<span><strong>Prioritized list</strong> — Every fix is tagged high, medium, or low severity so you tackle what matters first.</span></li>
+        <li>${checkIcon}<span><strong>Actionable rationales</strong> — Each item explains exactly what to change and why it lifts conversion.</span></li>
+        <li>${checkIcon}<span><strong>Filter &amp; export</strong> — Filter by severity and export to CSV to share with your team.</span></li>
+        <li>${checkIcon}<span><strong>Ongoing value</strong> — Re-run anytime after making improvements to track progress.</span></li>
       </ul>
     </div>`;
 
@@ -283,57 +284,66 @@ export class RootController {
   <link rel="preload" href="/logo.svg" as="image">
   <title>${title}</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
-    .container { max-width: 600px; margin: 0 auto; }
-    .app-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
-    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
-    .shop-badge { font-size: 12px; color: #6d7175; font-weight: 500; }
-    .hero-line { font-size: 15px; color: #334155; margin: 0 0 28px 0; padding-bottom: 24px; border-bottom: 1px solid #e5e7eb; line-height: 1.6; }
-    .hero-line strong { font-weight: 600; color: #202223; }
-    .features-section { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
-    .section-heading { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #6d7175; margin: 0 0 8px 0; }
-    .section-lead { font-size: 14px; color: #334155; margin: 0 0 16px 0; line-height: 1.55; }
-    .feature-list { margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.65; }
-    .feature-list li { margin-bottom: 10px; }
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; margin-bottom: 18px; }
-    .card-error { border-color: #d72c0d; background: #fef2f2; }
-    .card-success { border-color: #86efac; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); padding: 24px; }
-    .card-success-icon { width: 36px; height: 36px; border-radius: 50%; background: #22c55e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; margin-bottom: 10px; }
-    .card-success-title { color: #166534; font-size: 14px; letter-spacing: 0.02em; }
-    .card-title { font-size: 12px; font-weight: 600; margin: 0 0 10px 0; color: #202223; letter-spacing: 0.05em; text-transform: uppercase; }
-    .card-text { margin: 0 0 14px 0; color: #6d7175; font-size: 14px; }
-    .card-text.plans-intro { margin-bottom: 18px; }
-    .card-text.muted { margin: 0; }
-    .btn { display: inline-block; padding: 11px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
-    .btn-primary { background: #008060; color: #fff; }
-    .btn-primary:hover { background: #006e52; }
-    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
-    .btn-outline:hover { background: #f6f6f7; }
-    .btn-plan { width: 100%; background: #008060; color: #fff; padding: 12px 16px; }
-    .btn-plan:hover { background: #006e52; }
-    .plans-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; align-items: stretch; }
-    .plan-card { display: flex; flex-direction: column; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px; }
-    .plan-card.plan-popular { border-color: #008060; border-width: 2px; background: #fafbfc; box-shadow: 0 2px 8px rgba(0,128,96,.08); }
-    .plan-name { font-size: 14px; font-weight: 600; color: #202223; margin-bottom: 6px; }
-    .plan-price { font-size: 26px; font-weight: 700; color: #008060; letter-spacing: -0.02em; }
-    .plan-period { font-size: 14px; font-weight: 400; color: #6d7175; }
-    .plan-desc { font-size: 13px; color: #475569; line-height: 1.5; margin: 12px 0 0 0; flex: 1; }
-    .plan-btn-wrap { margin-top: 20px; }
-    .action-list { display: flex; flex-direction: column; gap: 12px; }
-    .action-item { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-    .action-desc { font-size: 13px; color: #6d7175; }
-    .billing-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-    .footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6d7175; }
-    .footer a { color: #008060; text-decoration: none; font-weight: 500; }
-    .footer a:hover { text-decoration: underline; }
-    @media (max-width: 480px) { .plans-grid { grid-template-columns: 1fr; } }
+    *{box-sizing:border-box}
+    body{margin:0;padding:28px 20px 48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#202223;background:#f6f6f7;min-height:100vh}
+    .home-wrap{max-width:600px;margin:0 auto}
+    .app-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid #e1e3e5}
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+    .app-logo-icon{height:28px;width:28px;display:block;flex-shrink:0}
+    .app-wordmark{font-size:16px;font-weight:700;color:#202223;letter-spacing:-0.02em}
+    .shop-badge{font-size:12px;color:#8c9196;font-weight:500;background:#f1f2f3;padding:4px 10px;border-radius:20px}
+    .banner{border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:14px}
+    .banner-success{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+    .banner-error{background:#fff0ed;border:1px solid #fca69d;color:#7a1a0e}
+    .banner-title{font-weight:700;margin:0 0 4px}
+    .banner-body{margin:0;line-height:1.5}
+    .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5;border-left:4px solid #008060}
+    .hero-text{font-size:14px;color:#44474a;line-height:1.65;margin:0}
+    .hero-text strong{color:#202223}
+    .features-card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:20px 22px;margin-bottom:16px}
+    .section-label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8c9196;margin:0 0 14px}
+    .section-desc{font-size:13px;color:#6d7175;margin:0 0 14px;line-height:1.55}
+    .feature-list{margin:0;padding:0;list-style:none}
+    .feature-list li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid #f2f2f2;font-size:13px;color:#44474a;line-height:1.5}
+    .feature-list li:last-child{border-bottom:none;padding-bottom:0}
+    .feat-icon{width:20px;height:20px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+    .card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:20px 22px;margin-bottom:16px}
+    .card-error{border-color:#d72c0d;background:#fff5f4}
+    .card-success{border-color:#86efac;background:linear-gradient(135deg,#f0fdf4 0%,#fff 60%)}
+    .card-success-icon{width:36px;height:36px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;margin-bottom:10px}
+    .card-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#8c9196;margin:0 0 14px}
+    .card-title-success{color:#166534}
+    .card-text{font-size:14px;color:#6d7175;margin:0 0 12px;line-height:1.55}
+    .card-text:last-child,.card-text.muted{margin-bottom:0}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s;line-height:1;white-space:nowrap}
+    .btn-primary{background:#008060;color:#fff;box-shadow:0 1px 2px rgba(0,128,96,.2)}
+    .btn-primary:hover{background:#006e52}
+    .btn-outline{background:#fff;color:#202223;border:1px solid #c9cccf}
+    .btn-outline:hover{background:#f6f6f7;border-color:#999ea4}
+    .plans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:4px}
+    .plan-card{display:flex;flex-direction:column;background:#fafbfc;border:1.5px solid #e1e3e5;border-radius:10px;padding:18px 20px}
+    .plan-card.plan-popular{border-color:#008060;background:#f9fefb;box-shadow:0 2px 10px rgba(0,128,96,.1)}
+    .plan-popular-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 8px;border-radius:20px;margin-bottom:8px}
+    .plan-name{font-size:15px;font-weight:700;color:#202223;margin-bottom:4px}
+    .plan-price{font-size:28px;font-weight:800;color:#008060;letter-spacing:-0.03em;line-height:1}
+    .plan-period{font-size:13px;font-weight:400;color:#8c9196}
+    .plan-desc{font-size:12px;color:#6d7175;line-height:1.5;margin:10px 0 0;flex:1}
+    .plan-btn-wrap{margin-top:16px}
+    .btn-plan{width:100%;background:#008060;color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:block;text-align:center;transition:background .12s}
+    .btn-plan:hover{background:#006e52}
+    .action-list{display:flex;flex-direction:column;gap:10px}
+    .action-item{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 0;border-bottom:1px solid #f2f2f2}
+    .action-item:last-child{border-bottom:none;padding-bottom:0}
+    .action-desc{font-size:13px;color:#6d7175;flex:1;min-width:160px}
+    .billing-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+    .app-footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:12px;color:#8c9196;display:flex;flex-wrap:wrap;gap:14px}
+    .app-footer a{color:#008060;text-decoration:none;font-weight:500}
+    .app-footer a:hover{text-decoration:underline}
+    @media(max-width:480px){.plans-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="home-wrap">
     <header class="app-header">
       <div class="brand"><img src="/logo.svg" alt="" class="app-logo-icon"><span class="app-wordmark">${title}</span></div>
       <span class="shop-badge">${shopSafe}</span>
@@ -342,12 +352,14 @@ export class RootController {
     ${cancelledBanner}
     ${billingCancelErrorBanner}
     ${billingBanner}
-    <p class="hero-line"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store. Run a scan, then work through recommendations by severity.</p>
+    <div class="hero-block">
+      <p class="hero-text"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store's conversion rate. Run a scan, then work through recommendations by severity.</p>
+    </div>
     ${featuresHtml}
     ${ctaCard}
     ${actionsCard}
-    <footer class="footer">
-      <a href="${statusUrl}" target="_top">Billing status</a>${appStoreListingUrl ? ` &middot; <a href="${this.escapeHtml(appStoreListingUrl)}" target="_blank" rel="noopener">Leave a review</a>` : ''}
+    <footer class="app-footer">
+      <a href="${statusUrl}" target="_top">Billing status</a>${appStoreListingUrl ? ` <a href="${this.escapeHtml(appStoreListingUrl)}" target="_blank" rel="noopener">Leave a review ↗</a>` : ''}
     </footer>
   </div>
   ${this.getDismissAppBridgeLoadingScript()}
@@ -357,18 +369,13 @@ export class RootController {
 
   private getThankYouBanner(planKey: string): string {
     const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
-    return `
-    <div class="card card-success">
-      <div class="card-success-icon" aria-hidden="true">✓</div>
-      <h2 class="card-title card-success-title">Thank you for your purchase</h2>
-      <p class="card-text">Your <strong>${this.escapeHtml(planName)}</strong> plan is now active. You have full access to store scans and recommendations. We're glad to have you on board.</p>
-    </div>`;
+    return `<div class="banner banner-success"><p class="banner-title">🎉 Welcome to ${this.escapeHtml(planName)}!</p><p class="banner-body">Your plan is now active. You have full access to store scans and recommendations. Run your first scan to get started.</p></div>`;
   }
 
   private getBillingConfirmHtml(planKey: string, baseUrl: string, homeUrl: string, subscribeUrl: string): string {
     const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
     const price = planKey === 'pro' ? 29 : planKey === 'starter' ? 9 : 19;
-    const title = 'Conversion Optimizer';
+    const isPopular = planKey === 'pro';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -376,44 +383,46 @@ export class RootController {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <title>Confirm subscription — ${this.escapeHtml(planName)}</title>
+  <title>Confirm — ${this.escapeHtml(planName)} plan</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
-    .container { max-width: 520px; margin: 0 auto; }
-    .confirm-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
-    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
-    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-    .card-confirm-title { font-size: 18px; font-weight: 600; color: #202223; margin: 0 0 8px 0; }
-    .card-confirm-plan { font-size: 22px; font-weight: 700; color: #008060; margin: 0 0 16px 0; }
-    .card-confirm-desc { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0; }
-    .card-confirm-note { font-size: 13px; color: #6d7175; background: #f9fafb; padding: 14px 16px; border-radius: 8px; margin-bottom: 24px; line-height: 1.5; }
-    .btn-wrap { display: flex; flex-direction: column; gap: 12px; }
-    .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
-    .btn-primary { background: #008060; color: #fff; }
-    .btn-primary:hover { background: #006e52; }
-    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
-    .btn-outline:hover { background: #f6f6f7; }
-    .card-success { border-color: #86efac; background: linear-gradient(180deg, #f0fdf4 0%, #fff 100%); }
-    .card-success-icon { width: 40px; height: 40px; border-radius: 50%; background: #22c55e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; margin-bottom: 12px; }
-    .card-success-title { color: #166534; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:32px 20px 48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#202223;background:#f6f6f7;min-height:100vh}
+    .wrap{max-width:480px;margin:0 auto}
+    .top-nav{display:flex;align-items:center;gap:8px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid #e1e3e5}
+    .top-logo{height:26px;width:26px;flex-shrink:0}
+    .top-wordmark{font-size:15px;font-weight:700;color:#202223;letter-spacing:-0.02em}
+    .card{background:#fff;border:1px solid #e1e3e5;border-radius:12px;padding:26px 28px;margin-bottom:16px}
+    .plan-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${isPopular ? '#008060' : '#6d7175'};background:${isPopular ? '#e6f7f2' : '#f6f6f7'};border:1px solid ${isPopular ? '#a7f3d0' : '#e1e3e5'};padding:3px 10px;border-radius:20px;margin-bottom:14px}
+    .plan-name{font-size:22px;font-weight:800;color:#202223;letter-spacing:-0.02em;margin:0 0 4px}
+    .plan-price{font-size:32px;font-weight:800;color:#008060;letter-spacing:-0.03em;line-height:1;margin:0 0 4px}
+    .plan-period{font-size:14px;font-weight:400;color:#8c9196}
+    .plan-note{font-size:13px;color:#6d7175;background:#f9fafb;border:1px solid #e1e3e5;border-radius:8px;padding:12px 14px;margin:18px 0 22px;line-height:1.55}
+    .plan-desc{font-size:14px;color:#44474a;line-height:1.6;margin:12px 0 22px}
+    .divider{border:none;border-top:1px solid #e1e3e5;margin:20px 0}
+    .btn-wrap{display:flex;flex-direction:column;gap:10px}
+    .btn{display:block;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;text-align:center;transition:background .12s}
+    .btn-primary{background:#008060;color:#fff}
+    .btn-primary:hover{background:#006e52}
+    .btn-ghost{background:transparent;color:#6d7175;font-size:13px;padding:10px}
+    .btn-ghost:hover{color:#202223}
   </style>
 </head>
 <body>
-  <div class="container">
-    <header class="confirm-header">
-      <img src="/logo.svg" alt="" class="app-logo-icon">
-      <span class="app-wordmark">${title}</span>
-    </header>
+  <div class="wrap">
+    <div class="top-nav">
+      <img src="/logo.svg" alt="" class="top-logo">
+      <span class="top-wordmark">Conversion Optimizer</span>
+    </div>
     <div class="card">
-      <h1 class="card-confirm-title">Confirm your subscription</h1>
-      <p class="card-confirm-plan">${this.escapeHtml(planName)} — $${price}/month</p>
-      <p class="card-confirm-desc">You will be redirected to Shopify to complete the payment securely. Your subscription will appear on your next Shopify bill.</p>
-      <p class="card-confirm-note">You can cancel anytime from the app (Cancel subscription on the app home) or in Shopify Admin under Settings → Billing. No long-term commitment required.</p>
+      <div class="plan-badge">${isPopular ? 'Most popular' : 'Plan'}</div>
+      <p class="plan-name">${this.escapeHtml(planName)}</p>
+      <p class="plan-price">$${price}<span class="plan-period">/month</span></p>
+      <p class="plan-desc">${planKey === 'pro' ? 'Everything in Growth, plus 24/7 priority support. Perfect for teams and high-volume stores.' : 'Full access to store scan, recommendations, filter by severity, and CSV export.'}</p>
+      <hr class="divider">
+      <p class="plan-note">You'll be redirected to Shopify to complete payment securely. Your subscription will appear on your next Shopify bill. Cancel anytime from the app or Shopify Admin → Settings → Billing.</p>
       <div class="btn-wrap">
-        <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to checkout</a>
-        <a href="${homeUrl}" target="_top" class="btn btn-outline">Back to plans</a>
+        <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to Shopify checkout →</a>
+        <a href="${homeUrl}" target="_top" class="btn btn-ghost">← Back to plans</a>
       </div>
     </div>
   </div>
@@ -423,7 +432,6 @@ export class RootController {
   }
 
   private getBillingCancelConfirmHtml(baseUrl: string, homeUrl: string, cancelUrl: string): string {
-    const title = 'Conversion Optimizer';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -431,37 +439,45 @@ export class RootController {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <title>Cancel subscription — ${title}</title>
+  <title>Cancel subscription — Conversion Optimizer</title>
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.55; color: #202223; background: #f9fafb; min-height: 100vh; }
-    .container { max-width: 520px; margin: 0 auto; }
-    .confirm-header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e5e7eb; }
-    .app-logo-icon { height: 28px; width: 28px; display: block; flex-shrink: 0; }
-    .app-wordmark { font-size: 17px; font-weight: 600; color: #202223; letter-spacing: -0.02em; }
-    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 28px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
-    .card-confirm-title { font-size: 18px; font-weight: 600; color: #202223; margin: 0 0 8px 0; }
-    .card-confirm-desc { font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px 0; }
-    .btn-wrap { display: flex; flex-direction: column; gap: 12px; }
-    .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; font-family: inherit; text-align: center; }
-    .btn-primary { background: #d72c0d; color: #fff; }
-    .btn-primary:hover { background: #b71c0d; }
-    .btn-outline { background: #fff; color: #202223; border: 1px solid #c9cccf; }
-    .btn-outline:hover { background: #f6f6f7; }
+    *{box-sizing:border-box}
+    body{margin:0;padding:32px 20px 48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#202223;background:#f6f6f7;min-height:100vh}
+    .wrap{max-width:480px;margin:0 auto}
+    .top-nav{display:flex;align-items:center;gap:8px;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid #e1e3e5}
+    .top-logo{height:26px;width:26px;flex-shrink:0}
+    .top-wordmark{font-size:15px;font-weight:700;color:#202223;letter-spacing:-0.02em}
+    .card{background:#fff;border:1px solid #e1e3e5;border-radius:12px;padding:26px 28px;margin-bottom:16px}
+    .cancel-icon{width:44px;height:44px;border-radius:50%;background:#fff5f4;border:2px solid #fca69d;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+    .cancel-title{font-size:20px;font-weight:700;color:#202223;margin:0 0 8px;letter-spacing:-0.02em}
+    .cancel-desc{font-size:14px;color:#44474a;line-height:1.65;margin:0 0 8px}
+    .cancel-note{font-size:13px;color:#8c9196;margin:0 0 24px;line-height:1.5}
+    .divider{border:none;border-top:1px solid #e1e3e5;margin:20px 0}
+    .btn-wrap{display:flex;flex-direction:column;gap:10px}
+    .btn{display:block;padding:13px 24px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;text-align:center;transition:background .12s}
+    .btn-danger{background:#d72c0d;color:#fff}
+    .btn-danger:hover{background:#b71c0d}
+    .btn-primary{background:#008060;color:#fff}
+    .btn-primary:hover{background:#006e52}
   </style>
 </head>
 <body>
-  <div class="container">
-    <header class="confirm-header">
-      <img src="/logo.svg" alt="" class="app-logo-icon">
-      <span class="app-wordmark">${title}</span>
-    </header>
+  <div class="wrap">
+    <div class="top-nav">
+      <img src="/logo.svg" alt="" class="top-logo">
+      <span class="top-wordmark">Conversion Optimizer</span>
+    </div>
     <div class="card">
-      <h1 class="card-confirm-title">Cancel your subscription?</h1>
-      <p class="card-confirm-desc">You'll keep access until the end of your current billing period. After that, you won't be charged and you can resubscribe anytime.</p>
+      <div class="cancel-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 10V6m0 6v.5" stroke="#d72c0d" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="10" r="8" stroke="#d72c0d" stroke-width="1.5"/></svg>
+      </div>
+      <h1 class="cancel-title">Cancel your subscription?</h1>
+      <p class="cancel-desc">You'll keep full access until the end of your current billing period. After that, you won't be charged.</p>
+      <p class="cancel-note">You can resubscribe anytime from the app home.</p>
+      <hr class="divider">
       <div class="btn-wrap">
-        <a href="${cancelUrl}" target="_top" class="btn btn-primary">Yes, cancel my subscription</a>
-        <a href="${homeUrl}" target="_top" class="btn btn-outline">Keep my subscription</a>
+        <a href="${homeUrl}" target="_top" class="btn btn-primary">Keep my subscription</a>
+        <a href="${cancelUrl}" target="_top" class="btn btn-danger">Yes, cancel my subscription</a>
       </div>
     </div>
   </div>
@@ -471,35 +487,150 @@ export class RootController {
   }
 
   private getBaseStyles(): string {
-    return `*{box-sizing:border-box}body{margin:0;padding:28px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.55;color:#202223;background:#f6f6f7;min-height:100vh}.container{max-width:680px;margin:0 auto}.page-header{margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid #e1e3e5}.page-header-with-logo{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.page-header-with-logo .logo-link{text-decoration:none;display:flex;align-items:center;gap:8px}.page-header-with-logo .app-logo-small{height:24px;width:24px;display:block;flex-shrink:0}.page-header-with-logo .app-wordmark-sub{font-size:15px;font-weight:600;color:#202223}.page-title{font-size:24px;font-weight:600;margin:0 0 6px 0;color:#202223;letter-spacing:-0.02em}.page-subtitle{font-size:13px;color:#6d7175;margin:0}.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding:24px;margin-bottom:20px;border:1px solid rgba(0,0,0,.04)}.card-title{font-size:15px;font-weight:600;margin:0 0 12px 0;color:#202223}.card-text{margin:0 0 20px 0;color:#6d7175;font-size:14px}.btn{display:inline-block;padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:background .15s}.btn-primary{background:#008060;color:#fff}.btn-primary:hover{background:#006e52}.btn-secondary{background:#f6f6f7;color:#202223;border:1px solid #c9cccf}.btn-secondary:hover{background:#e1e3e5}.btn:disabled{opacity:.6;cursor:not-allowed}.footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:13px;color:#6d7175}.footer a{color:#008060;text-decoration:none;font-weight:500}.footer a:hover{text-decoration:underline}.muted{color:#6d7175}.hero{font-size:15px;color:#202223;margin:0 0 20px 0;line-height:1.6}.steps{margin:0 0 24px 0;padding-left:20px}.steps li{margin-bottom:8px;color:#6d7175}.success-card{background:linear-gradient(180deg,#f0fdf4 0%,#fff 100%);border:1px solid #86efac;padding:20px;border-radius:10px;margin-top:20px}.success-card .title{font-size:15px;font-weight:600;color:#166534;margin:0 0 8px 0}.success-card .detail{font-size:12px;color:#6d7175;font-family:ui-monospace,monospace;word-break:break-all;margin:8px 0 16px 0}.success-card .next{font-size:13px;color:#6d7175;margin:0 0 12px 0}.result-box{background:#f9fafb;border:1px solid #e1e3e5;border-radius:8px;padding:20px;margin-top:20px;font-size:13px;word-break:break-all}.result-box a{color:#008060;text-decoration:none;font-weight:500}.result-box a:hover{text-decoration:underline}.intro-block{margin-bottom:24px;padding:16px 20px;background:#f9fafb;border-radius:8px;border-left:4px solid #008060}.intro-block .intro-title{font-size:13px;font-weight:600;color:#202223;margin:0 0 6px 0}.intro-block .intro-text{font-size:13px;color:#6d7175;margin:0;line-height:1.5}.scan-lead{margin:0 0 20px 0;font-size:14px;color:#202223;line-height:1.5}.scan-what-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6d7175;margin:0 0 10px 0}.scan-what-list{margin:0 0 20px 0;padding-left:20px;font-size:13px;color:#44474a;line-height:1.6}.scan-what-list li{margin-bottom:6px}.scan-steps{margin:0 0 20px 0;font-size:13px;color:#6d7175;line-height:1.5}.table-wrap{overflow-x:auto;margin-top:16px}.table{width:100%;border-collapse:collapse;font-size:13px}.table th,.table td{padding:12px 16px;text-align:left;border-bottom:1px solid #e1e3e5}.table th{font-weight:600;color:#202223;background:#fafbfb;font-size:12px;text-transform:uppercase;letter-spacing:.04em}.table tr:hover{background:#f9fafb}.table td{vertical-align:top}.badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}.badge-high{background:#fef2f2;color:#b91c1c}.badge-medium{background:#fffbeb;color:#b45309}.badge-low{background:#f0fdf4;color:#15803d}.empty{text-align:center;padding:48px 24px;color:#6d7175}.empty .empty-title{font-size:15px;font-weight:600;color:#202223;margin:0 0 8px 0}.empty .empty-text{font-size:14px;margin:0;line-height:1.5}.count-bar{font-size:13px;color:#6d7175;margin-bottom:12px}.count-bar strong{color:#202223}.rec-intro{margin:0 0 20px 0;font-size:14px;color:#44474a;line-height:1.5}.rec-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #e1e3e5}.rec-summary{font-size:13px;color:#6d7175;flex:1;min-width:120px}.rec-filters{display:flex;gap:6px}.filter-btn{padding:6px 12px;border:1px solid #c9cccf;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:#44474a;font-family:inherit}.filter-btn:hover{background:#f6f6f7}.filter-btn.active{background:#202223;color:#fff;border-color:#202223}.btn-sm{padding:6px 12px;font-size:12px}.rec-list{display:flex;flex-direction:column;gap:16px}.rec-card{background:#fafbfb;border:1px solid #e1e3e5;border-radius:8px;padding:18px}.rec-card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.rec-title{font-size:14px;font-weight:600;color:#202223}.rec-category{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6d7175;display:block;margin-bottom:10px}.rec-rationale{font-size:13px;color:#44474a;line-height:1.6;margin:0 0 8px 0}.rec-impact{font-size:12px;color:#008060;margin:0;font-weight:500}`;
+    return `*{box-sizing:border-box}body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#202223;background:#f6f6f7;min-height:100vh}
+    .page-wrap{max-width:720px;margin:0 auto;padding:28px 24px 48px}
+    /* Sub-page header: back link top, then title full-width aligned with content */
+    .page-nav{display:flex;align-items:center;margin-bottom:20px}
+    .page-nav-back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:#6d7175;text-decoration:none;padding:6px 0;transition:color .15s}
+    .page-nav-back:hover{color:#202223}
+    .page-nav-back svg{flex-shrink:0}
+    .page-heading{margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid #e1e3e5}
+    .page-heading h1{font-size:22px;font-weight:700;letter-spacing:-0.025em;color:#202223;margin:0 0 4px 0;line-height:1.2}
+    .page-heading .page-shop{font-size:13px;color:#8c9196;margin:0;font-weight:400}
+    /* Cards */
+    .card{background:#fff;border-radius:10px;border:1px solid #e1e3e5;padding:22px;margin-bottom:16px}
+    .card+.card{margin-top:0}
+    .card-title{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#6d7175;margin:0 0 14px 0}
+    .card-text{font-size:14px;color:#6d7175;margin:0 0 14px 0;line-height:1.55}
+    .card-text:last-child{margin-bottom:0}
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;border:none;cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s,box-shadow .12s;line-height:1;white-space:nowrap}
+    .btn-primary{background:#008060;color:#fff;box-shadow:0 1px 2px rgba(0,128,96,.25)}
+    .btn-primary:hover{background:#006e52;box-shadow:0 2px 6px rgba(0,128,96,.3)}
+    .btn-secondary{background:#fff;color:#202223;border:1px solid #c9cccf}
+    .btn-secondary:hover{background:#f6f6f7;border-color:#999ea4}
+    .btn:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
+    .btn-sm{padding:7px 14px;font-size:13px}
+    .btn-lg{padding:13px 24px;font-size:15px}
+    /* Scan page */
+    .scan-intro{font-size:14px;color:#44474a;line-height:1.6;margin:0 0 20px}
+    .scan-checklist{list-style:none;padding:0;margin:0 0 24px}
+    .scan-checklist li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f1f1f1;font-size:13px;color:#44474a;line-height:1.5}
+    .scan-checklist li:last-child{border-bottom:none}
+    .scan-check{width:18px;height:18px;border-radius:50%;background:#f0fdf4;border:1.5px solid #86efac;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center}
+    .scan-check svg{display:block}
+    .scan-note{font-size:12px;color:#8c9196;margin:0 0 20px;line-height:1.5}
+    .scan-note a{color:#008060;text-decoration:none;font-weight:500}
+    .scan-note a:hover{text-decoration:underline}
+    .scan-result{margin-top:20px;border-radius:10px;padding:20px;display:none}
+    .scan-result.success{background:#f0fdf4;border:1px solid #86efac}
+    .scan-result.error{background:#fff0ed;border:1px solid #fca69d}
+    .scan-result .sr-title{font-size:14px;font-weight:700;margin:0 0 6px;color:#166534}
+    .scan-result.error .sr-title{color:#c0392b}
+    .scan-result .sr-body{font-size:13px;color:#374151;margin:0 0 14px;line-height:1.55}
+    .scan-result.error .sr-body{color:#6b2c2c}
+    /* Recommendations */
+    .rec-intro{font-size:14px;color:#44474a;line-height:1.6;margin:0 0 20px}
+    .rec-intro a{color:#008060;text-decoration:none;font-weight:500}
+    .rec-intro a:hover{text-decoration:underline}
+    .rec-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #e1e3e5}
+    .rec-summary{font-size:13px;color:#6d7175;flex:1;min-width:160px}
+    .rec-summary strong{color:#202223;font-weight:600}
+    .rec-filters{display:flex;gap:4px;flex-wrap:wrap}
+    .filter-btn{padding:6px 12px;border:1.5px solid #e1e3e5;background:#fff;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;color:#6d7175;font-family:inherit;transition:all .12s;line-height:1}
+    .filter-btn:hover{border-color:#c9cccf;color:#202223;background:#f9f9f9}
+    .filter-btn.active{background:#202223;color:#fff;border-color:#202223}
+    .filter-btn.active-high{background:#b91c1c;color:#fff;border-color:#b91c1c}
+    .filter-btn.active-medium{background:#b45309;color:#fff;border-color:#b45309}
+    .filter-btn.active-low{background:#15803d;color:#fff;border-color:#15803d}
+    .rec-list{display:flex;flex-direction:column;gap:12px}
+    .rec-card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:18px 20px;transition:box-shadow .15s}
+    .rec-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    .rec-card[data-severity="high"]{border-left:3px solid #d72c0d}
+    .rec-card[data-severity="medium"]{border-left:3px solid #e07d10}
+    .rec-card[data-severity="low"]{border-left:3px solid #1a8a4a}
+    .rec-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px}
+    .rec-title{font-size:14px;font-weight:700;color:#202223;line-height:1.35;flex:1}
+    .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;margin-top:1px}
+    .badge-high{background:#fef2f2;color:#b91c1c}
+    .badge-medium{background:#fffbeb;color:#b45309}
+    .badge-low{background:#f0fdf4;color:#15803d}
+    .rec-category{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8c9196;margin:0 0 10px}
+    .rec-rationale{font-size:13px;color:#44474a;line-height:1.65;margin:0 0 6px}
+    .rec-impact{font-size:12px;color:#008060;font-weight:600;margin:0;display:inline-flex;align-items:center;gap:4px}
+    /* Loading skeleton */
+    .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .skel-card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:18px 20px;margin-bottom:12px}
+    .skel-line{height:13px;margin-bottom:10px}.skel-line:last-child{width:60%;margin-bottom:0}
+    /* Empty & error states */
+    .state-box{text-align:center;padding:48px 24px}
+    .state-icon{font-size:32px;margin-bottom:12px}
+    .state-title{font-size:16px;font-weight:700;color:#202223;margin:0 0 6px}
+    .state-text{font-size:14px;color:#6d7175;margin:0 0 20px;line-height:1.5}
+    /* Footer */
+    .page-footer{margin-top:32px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:13px;color:#8c9196;display:flex;gap:16px;flex-wrap:wrap}
+    .page-footer a{color:#008060;text-decoration:none;font-weight:500}
+    .page-footer a:hover{text-decoration:underline}`;
   }
 
   private getScanRunPageHtml(shop: string, apiUrl: string, homeUrl: string, recsUrl: string): string {
     const recsEsc = recsUrl.replace(/'/g, "\\'");
     return `<!DOCTYPE html>
 <html lang="en">
-<head>${this.getAppBridgeHead()}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Run scan — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head>
+  ${this.getAppBridgeHead()}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Store scan — Conversion Optimizer</title>
+  <style>${this.getBaseStyles()}</style>
+</head>
 <body>
-  <div class="container">
-    <header class="page-header page-header-with-logo">
-      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.svg" alt="" class="app-logo-small"><span class="app-wordmark-sub">Conversion Optimizer</span></a>
-      <div><h1 class="page-title">Store scan</h1><p class="page-subtitle">${shop}</p></div>
-    </header>
-    <div class="card">
-      <p class="scan-lead">Run a full analysis of your store. We check products, copy, trust signals, and theme so you get a prioritized list of fixes.</p>
-      <p class="scan-what-title">What we analyze</p>
-      <ul class="scan-what-list">
-        <li>Product titles, descriptions, images, and variants</li>
-        <li>Trust signals: guarantees, shipping, returns, contact</li>
-        <li>Theme blocks and layout on product and global pages</li>
-        <li>Pricing and compare-at consistency</li>
-      </ul>
-      <p class="scan-steps muted" style="font-size:12px;margin-top:8px;">Recommendations that suggest adding app blocks (e.g. trust, FAQ) require an <strong>Online Store 2.0</strong> theme. <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Theme versions</a></p>
-      <p class="scan-steps">Click <strong>Start scan</strong>. The job runs in the background. When it finishes, open <strong>View recommendations</strong> from the app home to see your list.</p>
-      <button type="button" id="runBtn" class="btn btn-primary">Start scan</button>
-      <div id="result" style="display:none;"></div>
+  <div class="page-wrap">
+    <nav class="page-nav">
+      <a href="${homeUrl}" target="_top" class="page-nav-back">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Conversion Optimizer
+      </a>
+    </nav>
+    <div class="page-heading">
+      <h1>Store scan</h1>
+      <p class="page-shop">${this.escapeHtml(shop)}</p>
     </div>
-    <footer class="footer"><a href="${homeUrl}" target="_top">← Back to app</a></footer>
+
+    <div class="card">
+      <p class="scan-intro">Run a full analysis of your store — we check products, copy, trust signals, and your theme. You get a prioritized list of fixes ranked by impact.</p>
+      <p class="card-title">What we analyze</p>
+      <ul class="scan-checklist">
+        <li>
+          <span class="scan-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span>Product titles, descriptions, images, and variants</span>
+        </li>
+        <li>
+          <span class="scan-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span>Trust signals — guarantees, shipping, returns, and contact info</span>
+        </li>
+        <li>
+          <span class="scan-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span>Theme layout and blocks on product and global pages</span>
+        </li>
+        <li>
+          <span class="scan-check"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span>Pricing and compare-at price consistency</span>
+        </li>
+      </ul>
+      <p class="scan-note">Recommendations that suggest adding app blocks require an <strong>Online Store 2.0</strong> theme. <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Check your theme version →</a></p>
+      <button type="button" id="runBtn" class="btn btn-primary btn-lg">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5 3.5l7 4.5-7 4.5V3.5z" fill="currentColor"/></svg>
+        Start scan
+      </button>
+      <div id="result" class="scan-result"></div>
+    </div>
+
+    <footer class="page-footer">
+      <a href="${homeUrl}" target="_top">← Back to app</a>
+    </footer>
   </div>
   <script>
     (function() {
@@ -509,25 +640,29 @@ export class RootController {
       var recsUrl = '${recsEsc}';
       btn.onclick = function() {
         btn.disabled = true;
-        btn.textContent = 'Running…';
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="animation:spin .7s linear infinite"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="rgba(255,255,255,.4)" stroke-width="2"/><path d="M8 2a6 6 0 0 1 6 6" stroke="white" stroke-width="2" stroke-linecap="round"/></svg> Scanning…';
         result.style.display = 'none';
+        result.className = 'scan-result';
         fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
           .then(function(r) { return r.json(); })
           .then(function(data) {
             btn.disabled = false;
-            btn.textContent = 'Start scan';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5 3.5l7 4.5-7 4.5V3.5z" fill="currentColor"/></svg> Start scan';
             result.style.display = 'block';
-            result.className = 'success-card';
-            result.innerHTML = '<p class="title">Scan started</p><p class="next">Your store is being analyzed. When the scan finishes, click View recommendations below to see your prioritized list.</p><a href="' + recsUrl + '" target="_top" class="btn btn-primary">View recommendations</a>';
+            result.className = 'scan-result success';
+            result.innerHTML = '<p class="sr-title">✓ Scan started</p><p class="sr-body">Your store is being analyzed. Once complete, head back to the app home and click <strong>View recommendations</strong> to see your prioritized list.</p><a href="' + recsUrl + '" target="_top" class="btn btn-primary">View recommendations</a>';
           })
           .catch(function(err) {
             btn.disabled = false;
-            btn.textContent = 'Start scan';
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M5 3.5l7 4.5-7 4.5V3.5z" fill="currentColor"/></svg> Start scan';
             result.style.display = 'block';
-            result.className = 'result-box';
-            result.innerHTML = '<strong>Request failed</strong><br>' + (err.message || 'Try again or go back to the app.');
+            result.className = 'scan-result error';
+            result.innerHTML = '<p class="sr-title">Scan failed</p><p class="sr-body">' + (err.message || 'Something went wrong. Please try again or go back to the app.') + '</p>';
           });
       };
+      var style = document.createElement('style');
+      style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(style);
     })();
   </script>
   ${this.getDismissAppBridgeLoadingScript()}
@@ -538,74 +673,137 @@ export class RootController {
   private getRecommendationsPageHtml(shop: string, apiUrl: string, homeUrl: string): string {
     return `<!DOCTYPE html>
 <html lang="en">
-<head>${this.getAppBridgeHead()}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><title>Recommendations — Conversion Optimizer</title><style>${this.getBaseStyles()}</style></head>
+<head>
+  ${this.getAppBridgeHead()}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Recommendations — Conversion Optimizer</title>
+  <style>${this.getBaseStyles()}</style>
+</head>
 <body>
-  <div class="container">
-    <header class="page-header page-header-with-logo">
-      <a href="${homeUrl}" target="_top" class="logo-link"><img src="/logo.svg" alt="" class="app-logo-small"><span class="app-wordmark-sub">Conversion Optimizer</span></a>
-      <div><h1 class="page-title">Recommendations</h1><p class="page-subtitle">${shop}</p></div>
-    </header>
-    <p class="rec-intro">Prioritized actions to improve conversion. Tackle high-impact items first, then medium and low. Recommendations that add theme blocks require an <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Online Store 2.0</a> theme.</p>
-    <div class="card">
-      <div id="loading" class="card-text">Loading…</div>
-      <div id="content" style="display:none;"></div>
+  <div class="page-wrap">
+    <nav class="page-nav">
+      <a href="${homeUrl}" target="_top" class="page-nav-back">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Conversion Optimizer
+      </a>
+    </nav>
+    <div class="page-heading">
+      <h1>Recommendations</h1>
+      <p class="page-shop">${this.escapeHtml(shop)}</p>
     </div>
-    <footer class="footer"><a href="${homeUrl}" target="_top">← Back to app</a></footer>
+
+    <p class="rec-intro">Prioritized actions to improve your conversion rate. Tackle high-impact items first, then medium and low. Recommendations requiring theme blocks need an <a href="https://help.shopify.com/en/manual/online-store/themes/managing-themes/versions#features" target="_blank" rel="noopener">Online Store 2.0</a> theme.</p>
+
+    <div id="loading">
+      <div class="skel-card"><div class="skeleton skel-line" style="width:55%;height:15px;margin-bottom:12px"></div><div class="skeleton skel-line" style="width:100%"></div><div class="skeleton skel-line" style="width:85%"></div></div>
+      <div class="skel-card"><div class="skeleton skel-line" style="width:70%;height:15px;margin-bottom:12px"></div><div class="skeleton skel-line" style="width:100%"></div><div class="skeleton skel-line" style="width:60%"></div></div>
+      <div class="skel-card"><div class="skeleton skel-line" style="width:45%;height:15px;margin-bottom:12px"></div><div class="skeleton skel-line" style="width:100%"></div><div class="skeleton skel-line" style="width:78%"></div></div>
+    </div>
+    <div id="content" style="display:none;"></div>
+
+    <footer class="page-footer">
+      <a href="${homeUrl}" target="_top">← Back to app</a>
+    </footer>
   </div>
   <script>
     (function() {
       var loading = document.getElementById('loading');
       var content = document.getElementById('content');
       var list = [];
+      var currentFilter = 'all';
       function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
-      function severityClass(s) { return (s || '').toLowerCase().indexOf('high') >= 0 ? 'badge-high' : (s || '').toLowerCase().indexOf('medium') >= 0 ? 'badge-medium' : 'badge-low'; }
-      function severityKey(s) { return (s || '').toLowerCase().indexOf('high') >= 0 ? 'high' : (s || '').toLowerCase().indexOf('medium') >= 0 ? 'medium' : 'low'; }
+      function severityKey(s) {
+        var sl = (s || '').toLowerCase();
+        return sl.indexOf('high') >= 0 ? 'high' : sl.indexOf('medium') >= 0 ? 'medium' : 'low';
+      }
+      function severityLabel(s) {
+        var k = severityKey(s);
+        return k.charAt(0).toUpperCase() + k.slice(1);
+      }
+      function impactStr(imp) {
+        if (!imp || imp.metric !== 'conversion_rate') return '';
+        var lo = imp.low != null ? (imp.low * 100).toFixed(1) : '';
+        var hi = imp.high != null ? (imp.high * 100).toFixed(1) : '';
+        return (lo && hi) ? '+' + lo + '\\u2013' + hi + '% conversion rate' : '';
+      }
       function renderRecs(filter) {
+        currentFilter = filter;
         var filtered = filter === 'all' ? list : list.filter(function(r) { return severityKey(r.severity) === filter; });
-        var high = list.filter(function(r) { return severityKey(r.severity) === 'high'; }).length;
-        var med = list.filter(function(r) { return severityKey(r.severity) === 'medium'; }).length;
-        var low = list.filter(function(r) { return severityKey(r.severity) === 'low'; }).length;
-        var summary = high + ' high, ' + med + ' medium, ' + low + ' low — address high first';
-        var impactStr = function(imp) {
-          if (!imp || imp.metric !== 'conversion_rate') return '';
-          var lo = imp.low != null ? (imp.low * 100).toFixed(1) : '';
-          var hi = imp.high != null ? (imp.high * 100).toFixed(1) : '';
-          if (lo && hi) return 'Expected impact: +' + lo + '–' + hi + '% conversion rate.';
-          return '';
-        };
-        var cards = '';
-        for (var i = 0; i < filtered.length; i++) {
-          var r = filtered[i];
+        var counts = { high: 0, medium: 0, low: 0 };
+        list.forEach(function(r) { counts[severityKey(r.severity)]++; });
+
+        var cards = filtered.map(function(r) {
+          var sk = severityKey(r.severity);
           var impact = impactStr(r.expectedImpact);
-          cards += '<article class="rec-card" data-severity="' + severityKey(r.severity) + '"><div class="rec-card-head"><span class="rec-title">' + esc(r.title || r.category) + '</span><span class="badge ' + severityClass(r.severity) + '">' + esc(r.severity) + '</span></div><span class="rec-category">' + esc(r.category) + '</span><p class="rec-rationale">' + esc(r.rationale) + '</p>' + (impact ? '<p class="rec-impact">' + esc(impact) + '</p>' : '') + '</article>';
-        }
-        var ac = function(f) { return 'filter-btn' + (filter === f ? ' active' : ''); };
-        var filterBar = '<div class="rec-toolbar"><div class="rec-summary">' + esc(summary) + '</div><div class="rec-filters"><button type="button" class="' + ac('all') + '" data-filter="all">All</button><button type="button" class="' + ac('high') + '" data-filter="high">High</button><button type="button" class="' + ac('medium') + '" data-filter="medium">Medium</button><button type="button" class="' + ac('low') + '" data-filter="low">Low</button></div><button type="button" id="exportBtn" class="btn btn-secondary btn-sm">Export CSV</button></div>';
-        content.innerHTML = filterBar + '<div class="rec-list">' + (filtered.length ? cards : '<p class="muted">No recommendations in this group.</p>') + '</div>';
+          return '<article class="rec-card" data-severity="' + sk + '">' +
+            '<div class="rec-card-head">' +
+              '<span class="rec-title">' + esc(r.title || r.category) + '</span>' +
+              '<span class="badge badge-' + sk + '">' + severityLabel(r.severity) + '</span>' +
+            '</div>' +
+            '<p class="rec-category">' + esc(r.category) + '</p>' +
+            '<p class="rec-rationale">' + esc(r.rationale) + '</p>' +
+            (impact ? '<p class="rec-impact"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' + esc(impact) + '</p>' : '') +
+          '</article>';
+        }).join('');
+
+        var filterActiveClass = function(f) {
+          var base = 'filter-btn';
+          if (filter !== f) return base;
+          if (f === 'all') return base + ' active';
+          if (f === 'high') return base + ' active-high';
+          if (f === 'medium') return base + ' active-medium';
+          return base + ' active-low';
+        };
+
+        var summaryParts = [];
+        if (counts.high) summaryParts.push('<strong>' + counts.high + ' high</strong>');
+        if (counts.medium) summaryParts.push('<strong>' + counts.medium + ' medium</strong>');
+        if (counts.low) summaryParts.push(counts.low + ' low');
+        var summary = summaryParts.join(', ') + (counts.high ? ' — address high first' : '');
+
+        var toolbar = '<div class="rec-toolbar">' +
+          '<div class="rec-summary">' + summary + '</div>' +
+          '<div class="rec-filters">' +
+            '<button type="button" class="' + filterActiveClass('all') + '" data-filter="all">All (' + list.length + ')</button>' +
+            (counts.high ? '<button type="button" class="' + filterActiveClass('high') + '" data-filter="high">High (' + counts.high + ')</button>' : '') +
+            (counts.medium ? '<button type="button" class="' + filterActiveClass('medium') + '" data-filter="medium">Medium (' + counts.medium + ')</button>' : '') +
+            (counts.low ? '<button type="button" class="' + filterActiveClass('low') + '" data-filter="low">Low (' + counts.low + ')</button>' : '') +
+          '</div>' +
+          '<button type="button" id="exportBtn" class="btn btn-secondary btn-sm">' +
+            '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v8M3 6l3.5 3.5L10 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M1 10v1.5a.5.5 0 0 0 .5.5h10a.5.5 0 0 0 .5-.5V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+            'Export CSV' +
+          '</button>' +
+        '</div>';
+
+        var emptyMsg = '<div class="state-box"><p class="state-icon">\\uD83D\\uDD0D</p><p class="state-title">No ' + (filter !== 'all' ? filter + ' ' : '') + 'recommendations</p><p class="state-text">' + (filter !== 'all' ? 'Try switching to All to see everything.' : 'Run a scan from the app home to generate recommendations.') + '</p></div>';
+
+        content.innerHTML = toolbar + '<div class="rec-list">' + (filtered.length ? cards : emptyMsg) + '</div>';
+
         content.querySelectorAll('.filter-btn').forEach(function(btn) {
-          btn.onclick = function() {
-            content.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
-            btn.classList.add('active');
-            renderRecs(btn.getAttribute('data-filter'));
-          };
+          btn.onclick = function() { renderRecs(btn.getAttribute('data-filter')); };
         });
+
         var exportBtn = document.getElementById('exportBtn');
         if (exportBtn) exportBtn.onclick = function() {
           var q = function(s) { return '"' + (s == null ? '' : String(s)).replace(/"/g, '""').replace(/\\n/g, ' ').replace(/\\r/g, ' ') + '"'; };
           var exportedAt = new Date().toISOString().slice(0, 10);
-          var csv = '\uFEFF'; // UTF-8 BOM for Excel
-          csv += q('Conversion Optimizer — CRO Recommendations Report') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
-          csv += q('Exported') + ',' + q(exportedAt) + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
-          csv += q('How to use') + ',' + q('Address High priority first, then Medium, then Low. Use the Rationale column for implementation guidance. Expected impact is estimated conversion rate improvement when the recommendation is applied.') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
-          csv += q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + ',' + q('') + '\\n';
+          var csv = '\\uFEFF';
+          csv += q('Conversion Optimizer \\u2014 CRO Recommendations Report') + ',,,,,\\n';
+          csv += q('Exported') + ',' + q(exportedAt) + ',,,, \\n';
+          csv += q('How to use') + ',' + q('Address High priority first, then Medium, then Low. Use the Rationale column for implementation guidance. Expected impact is an estimated conversion rate improvement.') + ',,,,\\n';
+          csv += ',,,,,\\n';
           csv += q('#') + ',' + q('Recommendation') + ',' + q('Category') + ',' + q('Priority') + ',' + q('Rationale') + ',' + q('Expected impact') + '\\n';
           list.forEach(function(r, idx) {
-            var imp = r.expectedImpact && r.expectedImpact.metric === 'conversion_rate' && r.expectedImpact.low != null && r.expectedImpact.high != null ? '+' + (r.expectedImpact.low * 100).toFixed(1) + '–' + (r.expectedImpact.high * 100).toFixed(1) + '%' : '';
-            var priority = (r.severity || '').toLowerCase();
-            if (priority.indexOf('high') >= 0) priority = 'High'; else if (priority.indexOf('medium') >= 0) priority = 'Medium'; else priority = 'Low';
+            var imp = r.expectedImpact && r.expectedImpact.metric === 'conversion_rate' && r.expectedImpact.low != null && r.expectedImpact.high != null ? '+' + (r.expectedImpact.low * 100).toFixed(1) + '\\u2013' + (r.expectedImpact.high * 100).toFixed(1) + '%' : '';
+            var priority = severityLabel(r.severity);
             csv += (idx + 1) + ',' + q(r.title || r.category || '') + ',' + q(r.category || '') + ',' + q(priority) + ',' + q(r.rationale || '') + ',' + q(imp) + '\\n';
           });
-          var a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv); a.download = 'conversion-optimizer-recommendations-' + exportedAt + '.csv'; a.click();
+          var a = document.createElement('a');
+          a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+          a.download = 'conversion-optimizer-recommendations-' + exportedAt + '.csv';
+          a.click();
         };
       }
       fetch('${apiUrl.replace(/'/g, "\\'")}')
@@ -618,7 +816,7 @@ export class RootController {
           loading.style.display = 'none';
           content.style.display = 'block';
           if (list.length === 0) {
-            content.innerHTML = '<div class="empty"><p class="empty-title">No recommendations yet</p><p class="empty-text">Run a scan from the app home. We analyze your products, trust signals, and theme and build a prioritized list.</p></div>';
+            content.innerHTML = '<div class="state-box"><p class="state-icon">\\uD83D\\uDCCA</p><p class="state-title">No recommendations yet</p><p class="state-text">Run a scan from the app home — we analyze your products, trust signals, and theme and build a prioritized list.</p><a href="${homeUrl}" target="_top" class="btn btn-primary">Back to app</a></div>';
             return;
           }
           renderRecs('all');
@@ -626,7 +824,7 @@ export class RootController {
         .catch(function(err) {
           loading.style.display = 'none';
           content.style.display = 'block';
-          content.innerHTML = '<p class="muted">Could not load recommendations: ' + (err.message || 'Request failed') + '. Try again or go back to the app.</p>';
+          content.innerHTML = '<div class="state-box"><p class="state-icon">\\u26A0\\uFE0F</p><p class="state-title">Could not load recommendations</p><p class="state-text">' + (err.message || 'Request failed') + '. Please try again.</p><button class="btn btn-secondary" onclick="location.reload()">Retry</button></div>';
         });
     })();
   </script>
