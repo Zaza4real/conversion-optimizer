@@ -59,6 +59,16 @@ export class BillingController {
     const planKey = this.resolvePlanKey(plan);
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     try {
+      const existing = await this.shops.getByDomain(normalized);
+      const samePaidPlan = this.shops.hasPaidPlan(existing)
+        && (existing.plan === planKey || (existing.plan === 'paid' && planKey === 'growth'));
+      if (samePaidPlan) {
+        const homeUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&same_plan=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, homeUrl);
+        return;
+      }
       const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
       res.redirect(302, confirmationUrl);
     } catch (err) {

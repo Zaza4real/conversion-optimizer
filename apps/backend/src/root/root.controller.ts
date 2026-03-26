@@ -192,10 +192,11 @@ export class RootController {
     const planJustPurchased = (req.query.plan as string)?.trim() || '';
     const cancelled = String(req.query.cancelled) === '1';
     const billingCancelError = String(req.query.billing_cancel_error) === '1';
+    const samePlan = String(req.query.same_plan) === '1';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan));
   }
 
   private escapeHtml(s: string): string {
@@ -219,7 +220,7 @@ export class RootController {
     return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -250,12 +251,27 @@ export class RootController {
           ? `<div class="banner banner-error"><p class="banner-title">Plan change failed</p><p class="banner-body">We couldn't complete your plan change. Your current <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan is still active. Please try again or contact support.</p></div>`
           : '<div class="banner banner-error"><p class="banner-title">Subscription failed</p><p class="banner-body">Subscription could not be started. Please try again or contact support.</p></div>')
       : '';
+    const samePlanBanner = samePlan
+      ? `<div class="banner banner-info"><p class="banner-title">Already on this plan</p><p class="banner-body">You are already subscribed to <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Select a different plan to switch.</p></div>`
+      : '';
     const billingCard = hasPlan
       ? isFreeBeta
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
         : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a></div></div>`).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
+    const currentPlanKey = currentPlanLabel.toLowerCase().includes('annual')
+      ? 'pro_annual'
+      : currentPlanLabel.toLowerCase() === 'pro'
+        ? 'pro'
+        : currentPlanLabel.toLowerCase() === 'starter'
+          ? 'starter'
+          : currentPlanLabel.toLowerCase().includes('growth')
+            ? 'growth'
+            : '';
+    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => {
+      const isCurrent = hasPlan && p.key === currentPlanKey;
+      return `<div class="plan-card${p.popular ? ' plan-popular' : ''}${isCurrent ? ' plan-card-current' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${isCurrent ? '<span class="plan-current-badge">Current</span>' : p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap">${isCurrent ? '<span class="btn-plan btn-plan-disabled">Current plan</span>' : `<a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a>`}</div></div>`;
+    }).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
@@ -297,6 +313,7 @@ export class RootController {
     .banner{border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:14px}
     .banner-success{background:#f0fdf4;border:1px solid #86efac;color:#166534}
     .banner-error{background:#fff0ed;border:1px solid #fca69d;color:#7a1a0e}
+    .banner-info{background:#eef6ff;border:1px solid #b8d8ff;color:#1e4f8f}
     .banner-title{font-weight:700;margin:0 0 4px}
     .banner-body{margin:0;line-height:1.5}
     .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5;border-left:4px solid #008060}
@@ -310,6 +327,7 @@ export class RootController {
     .feature-list li:last-child{border-bottom:none;padding-bottom:0}
     .feat-icon{width:20px;height:20px;border-radius:6px;background:#f0fdf4;border:1px solid #bbf7d0;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
     .card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:20px 22px;margin-bottom:16px}
+    .hero-block,.features-card,.card{content-visibility:auto;contain-intrinsic-size:1px 260px}
     .card-error{border-color:#d72c0d;background:#fff5f4}
     .card-success{border-color:#86efac;background:linear-gradient(135deg,#f0fdf4 0%,#fff 60%)}
     .card-success-icon{width:36px;height:36px;border-radius:50%;background:#22c55e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;margin-bottom:10px}
@@ -325,9 +343,10 @@ export class RootController {
     .plans-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:6px;align-items:stretch}
     .plan-card{position:relative;display:flex;flex-direction:column;min-height:280px;background:#fafbfc;border:1px solid #dfe3e8;border-radius:10px;padding:16px 16px 14px}
     .plan-card.plan-popular{background:#f9fefb;border-color:#008060;box-shadow:0 4px 14px rgba(0,128,96,.12)}
-    .plan-card.plan-popular::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;border-radius:10px 10px 0 0;background:#008060}
+    .plan-card.plan-card-current{border-color:#0f766e;box-shadow:0 0 0 1px #0f766e inset}
     .plan-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
     .plan-popular-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 7px;border-radius:20px}
+    .plan-current-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#0f766e;background:#e6fffb;padding:2px 7px;border-radius:20px}
     .plan-name{font-size:14px;font-weight:700;color:#202223;margin:0}
     .plan-price{font-size:34px;font-weight:800;color:#008060;letter-spacing:-0.03em;line-height:1.05;margin-top:10px}
     .plan-period{font-size:12px;font-weight:500;color:#8c9196}
@@ -335,6 +354,7 @@ export class RootController {
     .plan-btn-wrap{margin-top:14px}
     .btn-plan{width:100%;height:42px;background:#008060;color:#fff;padding:0 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;text-align:center;transition:background .12s}
     .btn-plan:hover{background:#006e52}
+    .btn-plan-disabled{background:#eef2f6;color:#7a8796;cursor:not-allowed}
     .pricing-disclosure{margin-top:12px;padding:10px 12px;border:1px dashed #c9cccf;border-radius:8px;background:#fcfcfd;font-size:12px;color:#6d7175;line-height:1.5}
     .action-list{display:flex;flex-direction:column;gap:10px}
     .action-item{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 0;border-bottom:1px solid #f2f2f2}
@@ -357,6 +377,7 @@ export class RootController {
     ${cancelledBanner}
     ${billingCancelErrorBanner}
     ${billingBanner}
+    ${samePlanBanner}
     <div class="hero-block">
       <p class="hero-text"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store's conversion rate. Run a scan, then work through recommendations by severity.</p>
     </div>
