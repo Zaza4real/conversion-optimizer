@@ -294,7 +294,7 @@ Reviewers need to install and test the app. Provide:
 
 - [ ] **Basic app information** — App name and any short summary filled in.
 - [ ] **App store listing content** — Tagline, short description, full description, key features, and 3+ screenshots.
-- [ ] **Pricing details** — Growth $19/mo and Pro $29/mo; billing and cancel policy clear.
+- [ ] **Pricing details** — Growth $19/mo, Pro $29/mo, and Pro Annual $290/year; billing, trial (if any), and cancel policy clear.
 - [ ] **App discovery** — Category and tags set.
 - [ ] **Install requirements** — None (or short note as above).
 - [ ] **Tracking** — Declared (no tracking, or described + Privacy policy).
