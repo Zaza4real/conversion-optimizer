@@ -23,6 +23,9 @@ export class RecommendationsController {
     const list = await this.recommendations.findByShop(shop.id, n);
     return list.map((rec) => {
       const rule = getRuleById(rec.ruleId);
+      const context = (rec.patchPayload as { context?: { targetLabel?: string; issueDetail?: string } } | null)?.context;
+      const appliesTo = context?.targetLabel
+        ?? (rec.entityType === 'global' ? 'Store-wide theme' : `Product ${rec.entityId?.split('/').pop() ?? rec.entityId}`);
       return {
         id: rec.id,
         category: rec.category,
@@ -30,6 +33,8 @@ export class RecommendationsController {
         rationale: rec.rationale,
         expectedImpact: rec.expectedImpact ?? undefined,
         title: rule?.title ?? rec.category,
+        appliesTo,
+        issueDetail: context?.issueDetail,
       };
     });
   }

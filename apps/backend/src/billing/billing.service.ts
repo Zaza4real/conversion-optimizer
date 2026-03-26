@@ -5,9 +5,10 @@ import { ShopsService } from '../shops/shops.service';
 const SHOPIFY_API_VERSION = '2024-01';
 
 export const PLANS = {
-  starter: { price: 9, name: 'Conversion Optimizer — Starter $9/month', key: 'starter' },
-  growth: { price: 19, name: 'Conversion Optimizer — Growth $19/month', key: 'growth' },
-  pro: { price: 29, name: 'Conversion Optimizer — Pro $29/month', key: 'pro' },
+  starter: { price: 9, interval: 'EVERY_30_DAYS', name: 'Conversion Optimizer — Starter $9/month', key: 'starter' },
+  growth: { price: 19, interval: 'EVERY_30_DAYS', name: 'Conversion Optimizer — Growth $19/month', key: 'growth' },
+  pro: { price: 29, interval: 'EVERY_30_DAYS', name: 'Conversion Optimizer — Pro $29/month', key: 'pro' },
+  pro_annual: { price: 290, interval: 'ANNUAL', name: 'Conversion Optimizer — Pro $290/year', key: 'pro_annual' },
 } as const;
 
 export type PlanKey = keyof typeof PLANS;
@@ -38,7 +39,7 @@ export class BillingService {
 
   /**
    * Create a recurring app subscription via GraphQL and return the confirmation URL
-   * where the merchant must approve the charge. planKey must be one of: starter, growth, pro.
+   * where the merchant must approve the charge.
    */
   async createRecurringCharge(shopDomain: string, planKey: PlanKey = 'growth'): Promise<CreateChargeResult> {
     const normalized = this.normalizeDomain(shopDomain);
@@ -84,7 +85,7 @@ export class BillingService {
           plan: {
             appRecurringPricingDetails: {
               price: { amount: planConfig.price, currencyCode: 'USD' },
-              interval: 'EVERY_30_DAYS',
+              interval: planConfig.interval,
             },
           },
         },

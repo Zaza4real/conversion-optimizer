@@ -15,11 +15,14 @@ export class RecommendationsService {
       .createQueryBuilder('r')
       .select([
         'r.id',
+        'r.entityType',
+        'r.entityId',
         'r.category',
         'r.ruleId',
         'r.severity',
         'r.rationale',
         'r.expectedImpact',
+        'r.patchPayload',
       ])
       .where('r.shopId = :shopId', { shopId })
       .orderBy('r.createdAt', 'DESC')

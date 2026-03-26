@@ -66,8 +66,12 @@ export class ShopsService {
     }
   }
 
-  /** Mark shop as paid and store the recurring charge id and plan tier (starter | growth | pro). */
-  async setPaidPlan(domain: string, recurringChargeId: string, plan: 'starter' | 'growth' | 'pro' = 'growth'): Promise<void> {
+  /** Mark shop as paid and store the recurring charge id and plan tier. */
+  async setPaidPlan(
+    domain: string,
+    recurringChargeId: string,
+    plan: 'starter' | 'growth' | 'pro' | 'pro_annual' = 'growth',
+  ): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
       shop.plan = plan;
@@ -100,13 +104,14 @@ export class ShopsService {
   /** True if shop has an active paid subscription (any tier) or is on the free beta allowlist. */
   hasPaidPlan(shop: Shop): boolean {
     if (this.isFreeBetaShop(shop.domain)) return true;
-    const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'paid';
+    const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'pro_annual' || shop.plan === 'paid';
     return paid && shop.recurringChargeId != null;
   }
 
   /** Current plan label for display (e.g. "Starter", "Growth", "Pro", "Free beta"). */
   getPlanLabel(shop: Shop): string {
     if (this.isFreeBetaShop(shop.domain)) return 'Free beta';
+    if (shop.plan === 'pro_annual') return 'Pro Annual';
     if (shop.plan === 'pro') return 'Pro';
     if (shop.plan === 'growth' || shop.plan === 'paid') return 'Growth';
     if (shop.plan === 'starter') return 'Starter';

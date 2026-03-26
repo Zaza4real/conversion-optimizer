@@ -104,11 +104,12 @@ export class RootController {
     res.send(this.getBillingCancelConfirmHtml(baseUrl, homeUrl, cancelUrl));
   }
 
-  /** GET /billing/confirm?shop=...&plan=growth|pro — Professional confirmation before redirecting to Shopify checkout. */
+  /** GET /billing/confirm?shop=...&plan=starter|growth|pro|pro_annual. */
   @Get('billing/confirm')
   billingConfirm(@Req() req: Request, @Res() res: Response) {
     const shop = (req.query.shop as string)?.trim();
-    const plan = (req.query.plan as string)?.toLowerCase().trim();
+    const requestedPlan = (req.query.plan as string)?.toLowerCase().trim();
+    const plan = requestedPlan === 'starter' || requestedPlan === 'pro' || requestedPlan === 'pro_annual' ? requestedPlan : 'growth';
     if (!shop || !plan) {
       res.status(400).send('Missing shop or plan');
       return;
@@ -232,6 +233,7 @@ export class RootController {
     const plansDisplay = [
       { key: 'growth', name: 'Growth', price: 19, desc: 'Full access: store scan, recommendations, filter by severity, export CSV. Best for growing stores.' },
       { key: 'pro', name: 'Pro', price: 29, desc: 'Premium with 24/7 support. Everything in Growth, plus priority help and dedicated support for teams and high-volume stores.', popular: true },
+      { key: 'pro_annual', name: 'Pro Annual', price: 290, period: '/year', desc: 'Annual Pro billing for teams. Same Pro features with a lower effective monthly cost.' },
     ];
 
     const billingSuccessBanner = billingSuccess
@@ -253,7 +255,7 @@ export class RootController {
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
         : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}${p.popular ? '<div class="plan-popular-badge" style="display:inline-block;margin-left:8px">Popular</div>' : ''}</div><div class="plan-price">$${p.price}<span class="plan-period">/mo</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Get started'}</a></div></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing. No hidden fees.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}${p.popular ? '<div class="plan-popular-badge" style="display:inline-block;margin-left:8px">Popular</div>' : ''}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Get started'}</a></div></div>`).join('')}</div></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
@@ -320,7 +322,7 @@ export class RootController {
     .btn-primary:hover{background:#006e52}
     .btn-outline{background:#fff;color:#202223;border:1px solid #c9cccf}
     .btn-outline:hover{background:#f6f6f7;border-color:#999ea4}
-    .plans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:4px}
+    .plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:4px}
     .plan-card{display:flex;flex-direction:column;background:#fafbfc;border:1.5px solid #e1e3e5;border-radius:10px;padding:18px 20px}
     .plan-card.plan-popular{border-color:#008060;background:#f9fefb;box-shadow:0 2px 10px rgba(0,128,96,.1)}
     .plan-popular-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 8px;border-radius:20px;margin-bottom:8px}
@@ -368,14 +370,20 @@ export class RootController {
   }
 
   private getThankYouBanner(planKey: string): string {
-    const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
+    const planName = planKey === 'pro_annual' ? 'Pro Annual' : planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
     return `<div class="banner banner-success"><p class="banner-title">🎉 Welcome to ${this.escapeHtml(planName)}!</p><p class="banner-body">Your plan is now active. You have full access to store scans and recommendations. Run your first scan to get started.</p></div>`;
   }
 
   private getBillingConfirmHtml(planKey: string, baseUrl: string, homeUrl: string, subscribeUrl: string): string {
-    const planName = planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
-    const price = planKey === 'pro' ? 29 : planKey === 'starter' ? 9 : 19;
-    const isPopular = planKey === 'pro';
+    const planName = planKey === 'pro_annual' ? 'Pro Annual' : planKey === 'pro' ? 'Pro' : planKey === 'starter' ? 'Starter' : 'Growth';
+    const price = planKey === 'pro_annual' ? 290 : planKey === 'pro' ? 29 : planKey === 'starter' ? 9 : 19;
+    const period = planKey === 'pro_annual' ? '/year' : '/month';
+    const isPopular = planKey === 'pro' || planKey === 'pro_annual';
+    const planDescription = planKey === 'pro_annual'
+      ? 'Everything in Pro, billed yearly with a lower effective monthly cost. Ideal for long-term teams.'
+      : planKey === 'pro'
+        ? 'Everything in Growth, plus 24/7 priority support. Perfect for teams and high-volume stores.'
+        : 'Full access to store scan, recommendations, filter by severity, and CSV export.';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -416,10 +424,10 @@ export class RootController {
     <div class="card">
       <div class="plan-badge">${isPopular ? 'Most popular' : 'Plan'}</div>
       <p class="plan-name">${this.escapeHtml(planName)}</p>
-      <p class="plan-price">$${price}<span class="plan-period">/month</span></p>
-      <p class="plan-desc">${planKey === 'pro' ? 'Everything in Growth, plus 24/7 priority support. Perfect for teams and high-volume stores.' : 'Full access to store scan, recommendations, filter by severity, and CSV export.'}</p>
+      <p class="plan-price">$${price}<span class="plan-period">${period}</span></p>
+      <p class="plan-desc">${planDescription}</p>
       <hr class="divider">
-      <p class="plan-note">You'll be redirected to Shopify to complete payment securely. Your subscription will appear on your next Shopify bill. Cancel anytime from the app or Shopify Admin → Settings → Billing.</p>
+      <p class="plan-note">You'll be redirected to Shopify to complete payment securely. Your subscription will appear on your next Shopify bill. Cancel anytime from the app or Shopify Admin → Settings → Billing. No free trial is currently offered.</p>
       <div class="btn-wrap">
         <a href="${subscribeUrl}" target="_top" class="btn btn-primary">Continue to Shopify checkout →</a>
         <a href="${homeUrl}" target="_top" class="btn btn-ghost">← Back to plans</a>
@@ -555,7 +563,9 @@ export class RootController {
     .badge-high{background:#fef2f2;color:#b91c1c}
     .badge-medium{background:#fffbeb;color:#b45309}
     .badge-low{background:#f0fdf4;color:#15803d}
-    .rec-category{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8c9196;margin:0 0 10px}
+    .rec-category{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8c9196;margin:0 0 8px}
+    .rec-target{font-size:12px;color:#334155;margin:0 0 8px;padding:7px 10px;border-radius:7px;background:#f8fafc;border:1px solid #e2e8f0}
+    .rec-detail{font-size:12px;color:#6d7175;line-height:1.55;margin:0 0 10px}
     .rec-rationale{font-size:13px;color:#44474a;line-height:1.65;margin:0 0 6px}
     .rec-impact{font-size:12px;color:#008060;font-weight:600;margin:0;display:inline-flex;align-items:center;gap:4px}
     /* Loading skeleton */
@@ -737,12 +747,16 @@ export class RootController {
         var cards = filtered.map(function(r) {
           var sk = severityKey(r.severity);
           var impact = impactStr(r.expectedImpact);
+          var appliesTo = r.appliesTo || (r.entityType === 'global' ? 'Store-wide theme' : 'Product');
+          var issueDetail = r.issueDetail || '';
           return '<article class="rec-card" data-severity="' + sk + '">' +
             '<div class="rec-card-head">' +
               '<span class="rec-title">' + esc(r.title || r.category) + '</span>' +
               '<span class="badge badge-' + sk + '">' + severityLabel(r.severity) + '</span>' +
             '</div>' +
             '<p class="rec-category">' + esc(r.category) + '</p>' +
+            '<p class="rec-target"><strong>Applies to:</strong> ' + esc(appliesTo) + '</p>' +
+            (issueDetail ? '<p class="rec-detail"><strong>Issue found:</strong> ' + esc(issueDetail) + '</p>' : '') +
             '<p class="rec-rationale">' + esc(r.rationale) + '</p>' +
             (impact ? '<p class="rec-impact"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' + esc(impact) + '</p>' : '') +
           '</article>';
@@ -790,15 +804,15 @@ export class RootController {
           var q = function(s) { return '"' + (s == null ? '' : String(s)).replace(/"/g, '""').replace(/\\n/g, ' ').replace(/\\r/g, ' ') + '"'; };
           var exportedAt = new Date().toISOString().slice(0, 10);
           var csv = '\\uFEFF';
-          csv += q('Conversion Optimizer \\u2014 CRO Recommendations Report') + ',,,,,\\n';
-          csv += q('Exported') + ',' + q(exportedAt) + ',,,, \\n';
-          csv += q('How to use') + ',' + q('Address High priority first, then Medium, then Low. Use the Rationale column for implementation guidance. Expected impact is an estimated conversion rate improvement.') + ',,,,\\n';
-          csv += ',,,,,\\n';
-          csv += q('#') + ',' + q('Recommendation') + ',' + q('Category') + ',' + q('Priority') + ',' + q('Rationale') + ',' + q('Expected impact') + '\\n';
+          csv += q('Conversion Optimizer \\u2014 CRO Recommendations Report') + ',,,,,,,\\n';
+          csv += q('Exported') + ',' + q(exportedAt) + ',,,,,,\\n';
+          csv += q('How to use') + ',' + q('Address High priority first, then Medium, then Low. Use Applies to + Issue found to locate the exact product or store area quickly.') + ',,,,,,\\n';
+          csv += ',,,,,,,\\n';
+          csv += q('#') + ',' + q('Recommendation') + ',' + q('Category') + ',' + q('Priority') + ',' + q('Applies to') + ',' + q('Issue found') + ',' + q('Rationale') + ',' + q('Expected impact') + '\\n';
           list.forEach(function(r, idx) {
             var imp = r.expectedImpact && r.expectedImpact.metric === 'conversion_rate' && r.expectedImpact.low != null && r.expectedImpact.high != null ? '+' + (r.expectedImpact.low * 100).toFixed(1) + '\\u2013' + (r.expectedImpact.high * 100).toFixed(1) + '%' : '';
             var priority = severityLabel(r.severity);
-            csv += (idx + 1) + ',' + q(r.title || r.category || '') + ',' + q(r.category || '') + ',' + q(priority) + ',' + q(r.rationale || '') + ',' + q(imp) + '\\n';
+            csv += (idx + 1) + ',' + q(r.title || r.category || '') + ',' + q(r.category || '') + ',' + q(priority) + ',' + q(r.appliesTo || '') + ',' + q(r.issueDetail || '') + ',' + q(r.rationale || '') + ',' + q(imp) + '\\n';
           });
           var a = document.createElement('a');
           a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
@@ -908,7 +922,7 @@ export class RootController {
 <ul>
   <li><strong>Shop information:</strong> Your store's myshopify.com domain when you install the app.</li>
   <li><strong>Access token:</strong> A token provided by Shopify after you authorize the app. We store it encrypted and use it only to run store scans and fetch product/theme data via Shopify's API.</li>
-  <li><strong>Billing and plan:</strong> Whether you have an active subscription and which plan (Growth or Pro) so we can provide the correct features.</li>
+  <li><strong>Billing and plan:</strong> Whether you have an active subscription and which plan (Growth, Pro, or Pro Annual) so we can provide the correct features.</li>
   <li><strong>Recommendations:</strong> The list of recommendations generated by a scan (stored so you can view and export them).</li>
 </ul>
 <h2>How we use data</h2>

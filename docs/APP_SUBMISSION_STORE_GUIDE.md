@@ -133,18 +133,19 @@ Use these as the feature bullets in the listing:
 - **Actionable rationales** — Each recommendation explains what to change and why.
 - **Filter and export** — Filter by severity; export the full list to CSV.
 - **Expected impact** — Where we can estimate, we show potential conversion impact.
-- **Two plans** — Growth ($19) and Pro ($29) per month; cancel anytime.
+- **Three plans** — Growth ($19/month), Pro ($29/month), and Pro Annual ($290/year); cancel anytime.
 
 ### Screenshots / media
 
 Upload 3–5 images (PNG or JPEG). Suggested order:
 
-1. **App home** — Logo, shop name, “Plans” (Growth $19, Pro $29), “Run scan” and “View recommendations” buttons.
+1. **App home** — Logo, shop name, plans, “Run scan” and “View recommendations” buttons.
 2. **Run scan page** — “What we analyze” list and “Start scan” button.
 3. **Recommendations page** — Summary (e.g. X high, Y medium, Z low), a few recommendation cards with title, category, rationale.
 4. **(Optional)** Export CSV or filter UI.
 
 Use real or anonymized store data. Keep UI clean; no stock photos.
+**Important:** Do **not** include pricing text in screenshots, hero images, or the app icon. Pricing belongs only in the dedicated Pricing details section in Shopify Partners.
 
 ---
 
@@ -183,13 +184,15 @@ In the pricing section, enter:
 |--------|-------|----------|
 | Growth | $19   | Monthly  |
 | Pro    | $29   | Monthly  |
+| Pro Annual | $290 | Annual |
 
 **Summary text (if there’s a field):**
 
 - **Growth** — Store scan, prioritized recommendations, filter by severity, export CSV. Best for growing stores.
 - **Pro** — Everything in Growth, plus 24/7 priority support. For teams and high-volume stores.
+- **Pro Annual** — Everything in Pro, billed yearly for long-term teams.
 
-All charges in USD. Recurring every 30 days. Cancel anytime from Shopify Admin → Settings → Billing.
+All charges are in USD. Growth and Pro recur every 30 days. Pro Annual recurs every 365 days. No free trial is currently offered. Cancel anytime from Shopify Admin → Settings → Billing.
 
 ---
 

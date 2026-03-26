@@ -1,7 +1,7 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import { BillingService } from './billing.service';
+import { BillingService, PlanKey } from './billing.service';
 import { ShopsService } from '../shops/shops.service';
 
 function logBillingError(step: string, err: unknown): void {
@@ -42,7 +42,7 @@ export class BillingController {
   }
 
   /**
-   * GET /api/billing/subscribe?shop=...&plan=starter|growth|pro
+   * GET /api/billing/subscribe?shop=...&plan=starter|growth|pro|pro_annual
    * Creates a recurring charge for the chosen plan and redirects to Shopify's confirmation page.
    */
   @Get('subscribe')
@@ -56,7 +56,7 @@ export class BillingController {
       return;
     }
     const normalized = this.normalizeShop(shop.trim());
-    const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
+    const planKey = this.resolvePlanKey(plan);
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     try {
       const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
@@ -69,7 +69,7 @@ export class BillingController {
   }
 
   /**
-   * GET /api/billing/return?charge_id=...&shop=...&plan=starter|growth|pro
+   * GET /api/billing/return?charge_id=...&shop=...&plan=starter|growth|pro|pro_annual
    * Shopify redirects here after the merchant approves. We confirm and store the plan.
    */
   @Get('return')
@@ -86,7 +86,7 @@ export class BillingController {
       return;
     }
     const normalizedShop = this.normalizeShop(shop.trim());
-    const planKey = (plan?.toLowerCase() === 'starter' || plan?.toLowerCase() === 'pro' ? plan.toLowerCase() : 'growth') as 'starter' | 'growth' | 'pro';
+    const planKey = this.resolvePlanKey(plan);
     try {
       await this.billing.confirmAndActivate(normalizedShop, id, planKey);
     } catch (err) {
@@ -130,5 +130,13 @@ export class BillingController {
   private normalizeShop(shop: string): string {
     const s = shop.toLowerCase().trim().replace(/%2E/g, '.').replace(/^https?:\/\//, '').split('/')[0];
     return s.includes('.myshopify.com') ? s : `${s}.myshopify.com`;
+  }
+
+  private resolvePlanKey(plan: string | undefined): PlanKey {
+    const key = (plan ?? '').toLowerCase().trim();
+    if (key === 'starter' || key === 'growth' || key === 'pro' || key === 'pro_annual') {
+      return key;
+    }
+    return 'growth';
   }
 }
