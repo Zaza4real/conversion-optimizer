@@ -23,9 +23,12 @@ export class RecommendationsController {
     const list = await this.recommendations.findByShop(shop.id, n);
     return list.map((rec) => {
       const rule = getRuleById(rec.ruleId);
-      const context = (rec.patchPayload as { context?: { targetLabel?: string; issueDetail?: string } } | null)?.context;
+      const context = (rec.patchPayload as {
+        context?: { targetLabel?: string; issueDetail?: string; productHandle?: string };
+      } | null)?.context;
       const appliesTo = context?.targetLabel
         ?? (rec.entityType === 'global' ? 'Store-wide theme' : `Product ${rec.entityId?.split('/').pop() ?? rec.entityId}`);
+      const targetUrl = context?.productHandle ? `/products/${context.productHandle}` : undefined;
       return {
         id: rec.id,
         category: rec.category,
@@ -35,6 +38,7 @@ export class RecommendationsController {
         title: rule?.title ?? rec.category,
         appliesTo,
         issueDetail: context?.issueDetail,
+        targetUrl,
       };
     });
   }

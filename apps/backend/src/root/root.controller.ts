@@ -255,7 +255,7 @@ export class RootController {
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
         : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing. No hidden fees.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-name">${p.name}${p.popular ? '<div class="plan-popular-badge" style="display:inline-block;margin-left:8px">Popular</div>' : ''}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch to ' + p.name : 'Get started'}</a></div></div>`).join('')}</div></div>`;
+    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => `<div class="plan-card${p.popular ? ' plan-popular' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap"><a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a></div></div>`).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
     const ctaCard = billingCard + plansCard;
 
     const actionsCard = hasPlan
@@ -288,7 +288,7 @@ export class RootController {
   <style>
     *{box-sizing:border-box}
     body{margin:0;padding:28px 20px 48px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.6;color:#202223;background:#f6f6f7;min-height:100vh}
-    .home-wrap{max-width:600px;margin:0 auto}
+    .home-wrap{max-width:760px;margin:0 auto}
     .app-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid #e1e3e5}
     .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
     .app-logo-icon{height:28px;width:28px;display:block;flex-shrink:0}
@@ -322,17 +322,20 @@ export class RootController {
     .btn-primary:hover{background:#006e52}
     .btn-outline{background:#fff;color:#202223;border:1px solid #c9cccf}
     .btn-outline:hover{background:#f6f6f7;border-color:#999ea4}
-    .plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-top:4px}
-    .plan-card{display:flex;flex-direction:column;background:#fafbfc;border:1.5px solid #e1e3e5;border-radius:10px;padding:18px 20px}
-    .plan-card.plan-popular{border-color:#008060;background:#f9fefb;box-shadow:0 2px 10px rgba(0,128,96,.1)}
-    .plan-popular-badge{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 8px;border-radius:20px;margin-bottom:8px}
-    .plan-name{font-size:15px;font-weight:700;color:#202223;margin-bottom:4px}
-    .plan-price{font-size:28px;font-weight:800;color:#008060;letter-spacing:-0.03em;line-height:1}
-    .plan-period{font-size:13px;font-weight:400;color:#8c9196}
-    .plan-desc{font-size:12px;color:#6d7175;line-height:1.5;margin:10px 0 0;flex:1}
-    .plan-btn-wrap{margin-top:16px}
-    .btn-plan{width:100%;background:#008060;color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;display:block;text-align:center;transition:background .12s}
+    .plans-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:6px;align-items:stretch}
+    .plan-card{position:relative;display:flex;flex-direction:column;min-height:280px;background:#fafbfc;border:1px solid #dfe3e8;border-radius:10px;padding:16px 16px 14px}
+    .plan-card.plan-popular{background:#f9fefb;border-color:#008060;box-shadow:0 4px 14px rgba(0,128,96,.12)}
+    .plan-card.plan-popular::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;border-radius:10px 10px 0 0;background:#008060}
+    .plan-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
+    .plan-popular-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 7px;border-radius:20px}
+    .plan-name{font-size:14px;font-weight:700;color:#202223;margin:0}
+    .plan-price{font-size:34px;font-weight:800;color:#008060;letter-spacing:-0.03em;line-height:1.05;margin-top:10px}
+    .plan-period{font-size:12px;font-weight:500;color:#8c9196}
+    .plan-desc{font-size:12px;color:#6d7175;line-height:1.45;margin:10px 0 0;min-height:88px;flex:1}
+    .plan-btn-wrap{margin-top:14px}
+    .btn-plan{width:100%;height:42px;background:#008060;color:#fff;padding:0 14px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;text-align:center;transition:background .12s}
     .btn-plan:hover{background:#006e52}
+    .pricing-disclosure{margin-top:12px;padding:10px 12px;border:1px dashed #c9cccf;border-radius:8px;background:#fcfcfd;font-size:12px;color:#6d7175;line-height:1.5}
     .action-list{display:flex;flex-direction:column;gap:10px}
     .action-item{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 0;border-bottom:1px solid #f2f2f2}
     .action-item:last-child{border-bottom:none;padding-bottom:0}
@@ -341,7 +344,7 @@ export class RootController {
     .app-footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:12px;color:#8c9196;display:flex;flex-wrap:wrap;gap:14px}
     .app-footer a{color:#008060;text-decoration:none;font-weight:500}
     .app-footer a:hover{text-decoration:underline}
-    @media(max-width:480px){.plans-grid{grid-template-columns:1fr}}
+    @media(max-width:768px){.plans-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -565,6 +568,8 @@ export class RootController {
     .badge-low{background:#f0fdf4;color:#15803d}
     .rec-category{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#8c9196;margin:0 0 8px}
     .rec-target{font-size:12px;color:#334155;margin:0 0 8px;padding:7px 10px;border-radius:7px;background:#f8fafc;border:1px solid #e2e8f0}
+    .rec-target a{color:#005bd3;text-decoration:none;font-weight:600}
+    .rec-target a:hover{text-decoration:underline}
     .rec-detail{font-size:12px;color:#6d7175;line-height:1.55;margin:0 0 10px}
     .rec-rationale{font-size:13px;color:#44474a;line-height:1.65;margin:0 0 6px}
     .rec-impact{font-size:12px;color:#008060;font-weight:600;margin:0;display:inline-flex;align-items:center;gap:4px}
@@ -749,13 +754,16 @@ export class RootController {
           var impact = impactStr(r.expectedImpact);
           var appliesTo = r.appliesTo || (r.entityType === 'global' ? 'Store-wide theme' : 'Product');
           var issueDetail = r.issueDetail || '';
+          var appliesToHtml = r.targetUrl
+            ? '<a href="https://${shop}/admin' + esc(r.targetUrl) + '" target="_blank" rel="noopener">' + esc(appliesTo) + '</a>'
+            : esc(appliesTo);
           return '<article class="rec-card" data-severity="' + sk + '">' +
             '<div class="rec-card-head">' +
               '<span class="rec-title">' + esc(r.title || r.category) + '</span>' +
               '<span class="badge badge-' + sk + '">' + severityLabel(r.severity) + '</span>' +
             '</div>' +
             '<p class="rec-category">' + esc(r.category) + '</p>' +
-            '<p class="rec-target"><strong>Applies to:</strong> ' + esc(appliesTo) + '</p>' +
+            '<p class="rec-target"><strong>Applies to:</strong> ' + appliesToHtml + '</p>' +
             (issueDetail ? '<p class="rec-detail"><strong>Issue found:</strong> ' + esc(issueDetail) + '</p>' : '') +
             '<p class="rec-rationale">' + esc(r.rationale) + '</p>' +
             (impact ? '<p class="rec-impact"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' + esc(impact) + '</p>' : '') +
