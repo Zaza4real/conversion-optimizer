@@ -118,10 +118,31 @@ export class RootController {
     const normalized = this.normalizeShop(shop);
     const shopEnc = encodeURIComponent(normalized);
     const homeUrl = `${baseUrl}/?shop=${shopEnc}`;
-    const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}&plan=${encodeURIComponent(plan)}`;
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.send(this.getBillingConfirmHtml(plan, baseUrl, homeUrl, subscribeUrl));
+    const selectedPlan = plan;
+    const isSameCurrentPlan = async (): Promise<boolean> => {
+      const existing = await this.shops.findByDomain(normalized);
+      if (!existing || !this.shops.hasPaidPlan(existing)) return false;
+      const current = existing.plan === 'paid' ? 'growth' : existing.plan;
+      return current === selectedPlan;
+    };
+    isSameCurrentPlan()
+      .then((same) => {
+        if (same) {
+          res.redirect(302, `${homeUrl}&same_plan=1`);
+          return;
+        }
+        const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}&plan=${encodeURIComponent(plan)}`;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.send(this.getBillingConfirmHtml(plan, baseUrl, homeUrl, subscribeUrl));
+      })
+      .catch(() => {
+        const subscribeUrl = `${baseUrl}/api/billing/subscribe?shop=${shopEnc}&plan=${encodeURIComponent(plan)}`;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.send(this.getBillingConfirmHtml(plan, baseUrl, homeUrl, subscribeUrl));
+      });
+    return;
   }
 
   /** GET /recommendations?shop=... — Styled page: fetch and display recommendations (no raw JSON). */
@@ -186,6 +207,8 @@ export class RootController {
 
     const hasPlan = this.shops.hasPaidPlan(existing);
     const currentPlanLabel = this.shops.getPlanLabel(existing);
+    const currentPlanKey =
+      existing.plan === 'pro_annual' ? 'pro_annual' : existing.plan === 'pro' ? 'pro' : existing.plan === 'starter' ? 'starter' : 'growth';
     const isFreeBeta = this.shops.isFreeBetaShop(normalized);
     const billingError = String(req.query.billing_error) === '1';
     const billingSuccess = String(req.query.billing_success) === '1';
@@ -196,7 +219,7 @@ export class RootController {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan));
   }
 
   private escapeHtml(s: string): string {
@@ -220,7 +243,7 @@ export class RootController {
     return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -259,15 +282,6 @@ export class RootController {
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
         : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
       : '';
-    const currentPlanKey = currentPlanLabel.toLowerCase().includes('annual')
-      ? 'pro_annual'
-      : currentPlanLabel.toLowerCase() === 'pro'
-        ? 'pro'
-        : currentPlanLabel.toLowerCase() === 'starter'
-          ? 'starter'
-          : currentPlanLabel.toLowerCase().includes('growth')
-            ? 'growth'
-            : '';
     const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => {
       const isCurrent = hasPlan && p.key === currentPlanKey;
       return `<div class="plan-card${p.popular ? ' plan-popular' : ''}${isCurrent ? ' plan-card-current' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${isCurrent ? '<span class="plan-current-badge">Current</span>' : p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap">${isCurrent ? '<span class="btn-plan btn-plan-disabled">Current plan</span>' : `<a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a>`}</div></div>`;
@@ -342,7 +356,7 @@ export class RootController {
     .btn-outline:hover{background:#f6f6f7;border-color:#999ea4}
     .plans-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:6px;align-items:stretch}
     .plan-card{position:relative;display:flex;flex-direction:column;min-height:280px;background:#fafbfc;border:1px solid #dfe3e8;border-radius:10px;padding:16px 16px 14px}
-    .plan-card.plan-popular{background:#f9fefb;border-color:#008060;box-shadow:0 4px 14px rgba(0,128,96,.12)}
+    .plan-card.plan-popular{background:#f9fefb;border-color:#dfe3e8;box-shadow:0 2px 8px rgba(15,23,42,.06)}
     .plan-card.plan-card-current{border-color:#0f766e;box-shadow:0 0 0 1px #0f766e inset}
     .plan-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
     .plan-popular-badge{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#008060;background:#e6f7f2;padding:2px 7px;border-radius:20px}
