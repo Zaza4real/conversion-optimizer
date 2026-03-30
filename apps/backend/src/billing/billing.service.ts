@@ -245,7 +245,7 @@ export class BillingService {
     }
 
     const resolved = this.resolvePlanFromSnapshot(target);
-    await this.shops.clearBilling(normalized);
+    await this.shops.clearBilling(normalized, target.currentPeriodEnd ?? null, resolved.planLabel);
     return {
       currentPeriodEnd: target.currentPeriodEnd ?? null,
       planLabel: resolved.planLabel,

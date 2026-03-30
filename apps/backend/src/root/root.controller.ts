@@ -235,10 +235,14 @@ export class RootController {
     const billingCancelError = String(req.query.billing_cancel_error) === '1';
     const samePlan = String(req.query.same_plan) === '1';
     const cancelledPlanLabel = (req.query.cancelled_plan as string)?.trim() || '';
+    if (!activeUntilIso) {
+      activeUntilIso = this.shops.getBillingGraceUntil(existing) ?? '';
+    }
+    const cancelledPlanFromState = cancelledPlanLabel || this.shops.getCancelledPlanLabel(existing) || '';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanLabel));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanFromState));
   }
 
   private escapeHtml(s: string): string {

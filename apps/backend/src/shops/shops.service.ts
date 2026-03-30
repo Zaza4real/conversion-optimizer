@@ -76,17 +76,27 @@ export class ShopsService {
     if (shop) {
       shop.plan = plan;
       shop.recurringChargeId = recurringChargeId;
+      shop.settings = {
+        ...(shop.settings ?? {}),
+        billingGraceUntil: null,
+        cancelledPlanLabel: null,
+      };
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
   }
 
   /** Clear billing when subscription is cancelled. */
-  async clearBilling(domain: string): Promise<void> {
+  async clearBilling(domain: string, billingGraceUntil?: string | null, cancelledPlanLabel?: string | null): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
       shop.plan = 'free';
       shop.recurringChargeId = null;
+      shop.settings = {
+        ...(shop.settings ?? {}),
+        billingGraceUntil: billingGraceUntil ?? null,
+        cancelledPlanLabel: cancelledPlanLabel ?? null,
+      };
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
@@ -105,17 +115,35 @@ export class ShopsService {
   hasPaidPlan(shop: Shop): boolean {
     if (this.isFreeBetaShop(shop.domain)) return true;
     const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'pro_annual' || shop.plan === 'paid';
-    return paid && shop.recurringChargeId != null;
+    if (paid && shop.recurringChargeId != null) return true;
+    const graceUntil = this.getBillingGraceUntil(shop);
+    if (!graceUntil) return false;
+    const graceDate = new Date(graceUntil);
+    return !Number.isNaN(graceDate.getTime()) && graceDate.getTime() > Date.now();
   }
 
   /** Current plan label for display (e.g. "Starter", "Growth", "Pro", "Free beta"). */
   getPlanLabel(shop: Shop): string {
     if (this.isFreeBetaShop(shop.domain)) return 'Free beta';
+    if (shop.plan === 'free') {
+      const cancelledLabel = this.getCancelledPlanLabel(shop);
+      if (cancelledLabel) return cancelledLabel;
+    }
     if (shop.plan === 'pro_annual') return 'Pro Annual';
     if (shop.plan === 'pro') return 'Pro';
     if (shop.plan === 'growth' || shop.plan === 'paid') return 'Growth';
     if (shop.plan === 'starter') return 'Starter';
     return 'Free';
+  }
+
+  getBillingGraceUntil(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['billingGraceUntil'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+  }
+
+  getCancelledPlanLabel(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['cancelledPlanLabel'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
   async findByRecurringChargeId(chargeId: string): Promise<Shop | null> {
