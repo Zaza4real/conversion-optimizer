@@ -25,6 +25,23 @@ export interface ChargeStatus {
   price: string;
 }
 
+interface ActiveSubscriptionSnapshot {
+  id: string;
+  name?: string | null;
+  status?: string | null;
+  currentPeriodEnd?: string | null;
+  interval?: string | null;
+  amount?: number | null;
+}
+
+export interface ActiveSubscriptionInfo {
+  id: string;
+  planKey: PlanKey;
+  planLabel: string;
+  status: string;
+  currentPeriodEnd: string | null;
+}
+
 /**
  * Billing uses the GraphQL Admin API (appSubscriptionCreate) instead of the legacy REST
  * recurring_application_charges endpoint. REST returns 422 "application is currently owned
@@ -152,8 +169,8 @@ export class BillingService {
     const accessToken = this.shops.getAccessToken(shop);
 
     const subscriptionId = this.parseSubscriptionId(chargeId);
-    const activeSubscriptions = await this.getActiveSubscriptions(normalized, accessToken);
-    const matched = activeSubscriptions.some((id) => this.parseSubscriptionId(id) === subscriptionId || id === chargeId);
+    const activeSubscriptions = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
+    const matched = activeSubscriptions.some((s) => this.parseSubscriptionId(s.id) === subscriptionId || s.id === chargeId);
     if (matched) {
       await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey);
       return;
@@ -172,15 +189,22 @@ export class BillingService {
    * Cancel the shop's active app subscription via GraphQL. Stops future billing; merchant keeps access until period end.
    * Clears our billing state after successful cancel.
    */
-  async cancelSubscription(shopDomain: string): Promise<void> {
+  async cancelSubscription(shopDomain: string): Promise<string | null> {
     const normalized = this.normalizeDomain(shopDomain);
     const shop = await this.shops.getByDomain(normalized);
-    if (!shop.recurringChargeId?.trim()) {
-      throw new BadRequestException('No active subscription to cancel.');
-    }
     const accessToken = this.shops.getAccessToken(shop);
-    const subscriptionId = shop.recurringChargeId.replace(/\D/g, '') || shop.recurringChargeId;
-    const gid = `gid://shopify/AppSubscription/${subscriptionId}`;
+    const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
+    if (!active.length) throw new BadRequestException('No active subscription to cancel.');
+
+    const preferredId = shop.recurringChargeId?.trim()
+      ? `gid://shopify/AppSubscription/${shop.recurringChargeId.replace(/\D/g, '') || shop.recurringChargeId}`
+      : '';
+    const target = active.find((s) => s.id === preferredId)
+      ?? (shop.recurringChargeId?.trim()
+        ? active.find((s) => this.parseSubscriptionId(s.id) === this.parseSubscriptionId(shop.recurringChargeId as string))
+        : undefined)
+      ?? active[0];
+    const gid = target.id;
 
     const mutation = `mutation AppSubscriptionCancel($id: ID!) {
   appSubscriptionCancel(id: $id) {
@@ -216,12 +240,49 @@ export class BillingService {
     }
 
     await this.shops.clearBilling(normalized);
+    return target.currentPeriodEnd ?? null;
   }
 
-  private async getActiveSubscriptions(shopDomain: string, accessToken: string): Promise<string[]> {
+  /**
+   * Returns active subscription info for home/banner sync (useful after reinstall with persisting plan).
+   */
+  async getActiveSubscriptionInfo(shopDomain: string): Promise<ActiveSubscriptionInfo | null> {
+    const normalized = this.normalizeDomain(shopDomain);
+    const shop = await this.shops.getByDomain(normalized);
+    const accessToken = this.shops.getAccessToken(shop);
+    const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
+    if (!active.length) return null;
+    const target = active[0];
+    const resolved = this.resolvePlanFromSnapshot(target);
+    return {
+      id: target.id,
+      planKey: resolved.planKey,
+      planLabel: resolved.planLabel,
+      status: String(target.status ?? ''),
+      currentPeriodEnd: target.currentPeriodEnd ?? null,
+    };
+  }
+
+  private async getActiveSubscriptionSnapshots(shopDomain: string, accessToken: string): Promise<ActiveSubscriptionSnapshot[]> {
     const query = `query {
   currentAppInstallation {
-    activeSubscriptions { id }
+    activeSubscriptions {
+      id
+      name
+      status
+      currentPeriodEnd
+      lineItems {
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price { amount currencyCode }
+            }
+          }
+        }
+      }
+    }
   }
 }`;
     const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -239,7 +300,25 @@ export class BillingService {
       throw new BadRequestException('Unable to verify subscription.');
     }
     const data = (await res.json()) as {
-      data?: { currentAppInstallation?: { activeSubscriptions?: { id?: string }[] } };
+      data?: {
+        currentAppInstallation?: {
+          activeSubscriptions?: {
+            id?: string;
+            name?: string;
+            status?: string;
+            currentPeriodEnd?: string;
+            lineItems?: {
+              plan?: {
+                pricingDetails?: {
+                  __typename?: string;
+                  interval?: string;
+                  price?: { amount?: string };
+                };
+              };
+            }[];
+          }[];
+        };
+      };
       errors?: { message?: string }[];
     };
     if (data.errors?.length) {
@@ -247,7 +326,32 @@ export class BillingService {
       throw new BadRequestException('Unable to verify subscription.');
     }
     const subs = data.data?.currentAppInstallation?.activeSubscriptions ?? [];
-    return subs.map((s) => s.id ?? '').filter(Boolean);
+    return subs
+      .map((s) => ({
+        id: s.id ?? '',
+        name: s.name ?? null,
+        status: s.status ?? null,
+        currentPeriodEnd: s.currentPeriodEnd ?? null,
+        interval: s.lineItems?.[0]?.plan?.pricingDetails?.interval ?? null,
+        amount: s.lineItems?.[0]?.plan?.pricingDetails?.price?.amount != null
+          ? Number(s.lineItems?.[0]?.plan?.pricingDetails?.price?.amount)
+          : null,
+      }))
+      .filter((s) => Boolean(s.id));
+  }
+
+  private resolvePlanFromSnapshot(sub: ActiveSubscriptionSnapshot): { planKey: PlanKey; planLabel: string } {
+    const name = String(sub.name ?? '').toLowerCase();
+    if (name.includes('pro') && (name.includes('year') || name.includes('annual'))) {
+      return { planKey: 'pro_annual', planLabel: 'Pro Annual' };
+    }
+    if (name.includes('pro')) return { planKey: 'pro', planLabel: 'Pro' };
+    if (name.includes('starter')) return { planKey: 'starter', planLabel: 'Starter' };
+    if (name.includes('growth')) return { planKey: 'growth', planLabel: 'Growth' };
+    if (String(sub.interval).toUpperCase() === 'ANNUAL') return { planKey: 'pro_annual', planLabel: 'Pro Annual' };
+    if (sub.amount === 29) return { planKey: 'pro', planLabel: 'Pro' };
+    if (sub.amount === 9) return { planKey: 'starter', planLabel: 'Starter' };
+    return { planKey: 'growth', planLabel: 'Growth' };
   }
 
   private normalizeDomain(domain: string): string {

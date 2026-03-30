@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 import * as path from 'path';
 import { ShopsService } from '../shops/shops.service';
+import { BillingService } from '../billing/billing.service';
 
 /**
  * Handles GET / (Shopify app load in Admin iframe). Excluded from global "api" prefix.
@@ -15,6 +16,7 @@ export class RootController {
   constructor(
     private readonly shops: ShopsService,
     private readonly config: ConfigService,
+    private readonly billing: BillingService,
   ) {}
 
   /** Serve app favicon (SVG) at /favicon.ico for browser tab icon — crisp at any size */
@@ -205,10 +207,26 @@ export class RootController {
       return;
     }
 
-    const hasPlan = this.shops.hasPaidPlan(existing);
-    const currentPlanLabel = this.shops.getPlanLabel(existing);
-    const currentPlanKey =
+    let hasPlan = this.shops.hasPaidPlan(existing);
+    let currentPlanLabel = this.shops.getPlanLabel(existing);
+    let currentPlanKey =
       existing.plan === 'pro_annual' ? 'pro_annual' : existing.plan === 'pro' ? 'pro' : existing.plan === 'starter' ? 'starter' : 'growth';
+    let activeUntilIso = (req.query.active_until as string)?.trim() || '';
+    try {
+      const activeInfo = await this.billing.getActiveSubscriptionInfo(normalized);
+      if (activeInfo) {
+        hasPlan = true;
+        currentPlanLabel = activeInfo.planLabel;
+        currentPlanKey = activeInfo.planKey;
+        activeUntilIso = activeInfo.currentPeriodEnd ?? '';
+        // Keep local billing state in sync after reinstall with persisting active Shopify plan.
+        await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[Root] Active billing sync skipped:', err instanceof Error ? err.message : String(err));
+      }
+    }
     const isFreeBeta = this.shops.isFreeBetaShop(normalized);
     const billingError = String(req.query.billing_error) === '1';
     const billingSuccess = String(req.query.billing_success) === '1';
@@ -219,7 +237,7 @@ export class RootController {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso));
   }
 
   private escapeHtml(s: string): string {
@@ -243,7 +261,7 @@ export class RootController {
     return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = ''): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -276,6 +294,9 @@ export class RootController {
       : '';
     const samePlanBanner = samePlan
       ? `<div class="banner banner-info"><p class="banner-title">Already on this plan</p><p class="banner-body">You are already subscribed to <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Select a different plan to switch.</p></div>`
+      : '';
+    const activeUntilBanner = activeUntilIso
+      ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
       : '';
     const billingCard = hasPlan
       ? isFreeBeta
@@ -328,6 +349,7 @@ export class RootController {
     .banner-success{background:#f0fdf4;border:1px solid #86efac;color:#166534}
     .banner-error{background:#fff0ed;border:1px solid #fca69d;color:#7a1a0e}
     .banner-info{background:#eef6ff;border:1px solid #b8d8ff;color:#1e4f8f}
+    .banner-neutral{background:#f5f7fa;border:1px solid #d8dee7;color:#334155}
     .banner-title{font-weight:700;margin:0 0 4px}
     .banner-body{margin:0;line-height:1.5}
     .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5;border-left:4px solid #008060}
@@ -392,6 +414,7 @@ export class RootController {
     ${billingCancelErrorBanner}
     ${billingBanner}
     ${samePlanBanner}
+    ${activeUntilBanner}
     <div class="hero-block">
       <p class="hero-text"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store's conversion rate. Run a scan, then work through recommendations by severity.</p>
     </div>
@@ -405,6 +428,17 @@ export class RootController {
   ${this.getDismissAppBridgeLoadingScript()}
 </body>
 </html>`;
+  }
+
+  private extractTailId(gid: string): string {
+    const m = String(gid).match(/(\d+)$/);
+    return m ? m[1] : String(gid);
+  }
+
+  private formatDate(isoLike: string): string {
+    const d = new Date(isoLike);
+    if (Number.isNaN(d.getTime())) return isoLike;
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
   private getThankYouBanner(planKey: string): string {

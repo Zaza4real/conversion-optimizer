@@ -129,8 +129,9 @@ export class BillingController {
     const normalized = this.normalizeShop(shop.trim());
     const homeUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}` : `https://${normalized}/admin`;
     try {
-      await this.billing.cancelSubscription(normalized);
-      res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}&cancelled=1`);
+      const activeUntil = await this.billing.cancelSubscription(normalized);
+      const activeUntilParam = activeUntil ? `&active_until=${encodeURIComponent(activeUntil)}` : '';
+      res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}&cancelled=1${activeUntilParam}`);
     } catch (err) {
       logBillingError('cancel', err);
       res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
