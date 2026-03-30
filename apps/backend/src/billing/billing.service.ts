@@ -42,6 +42,11 @@ export interface ActiveSubscriptionInfo {
   currentPeriodEnd: string | null;
 }
 
+export interface CancelSubscriptionResult {
+  currentPeriodEnd: string | null;
+  planLabel: string;
+}
+
 /**
  * Billing uses the GraphQL Admin API (appSubscriptionCreate) instead of the legacy REST
  * recurring_application_charges endpoint. REST returns 422 "application is currently owned
@@ -189,7 +194,7 @@ export class BillingService {
    * Cancel the shop's active app subscription via GraphQL. Stops future billing; merchant keeps access until period end.
    * Clears our billing state after successful cancel.
    */
-  async cancelSubscription(shopDomain: string): Promise<string | null> {
+  async cancelSubscription(shopDomain: string): Promise<CancelSubscriptionResult> {
     const normalized = this.normalizeDomain(shopDomain);
     const shop = await this.shops.getByDomain(normalized);
     const accessToken = this.shops.getAccessToken(shop);
@@ -239,8 +244,12 @@ export class BillingService {
       throw new BadRequestException(msg);
     }
 
+    const resolved = this.resolvePlanFromSnapshot(target);
     await this.shops.clearBilling(normalized);
-    return target.currentPeriodEnd ?? null;
+    return {
+      currentPeriodEnd: target.currentPeriodEnd ?? null,
+      planLabel: resolved.planLabel,
+    };
   }
 
   /**

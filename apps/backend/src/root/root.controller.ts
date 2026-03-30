@@ -234,10 +234,11 @@ export class RootController {
     const cancelled = String(req.query.cancelled) === '1';
     const billingCancelError = String(req.query.billing_cancel_error) === '1';
     const samePlan = String(req.query.same_plan) === '1';
+    const cancelledPlanLabel = (req.query.cancelled_plan as string)?.trim() || '';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso));
+    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanLabel));
   }
 
   private escapeHtml(s: string): string {
@@ -261,7 +262,7 @@ export class RootController {
     return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = ''): string {
+  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = '', cancelledPlanLabel = ''): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -295,13 +296,16 @@ export class RootController {
     const samePlanBanner = samePlan
       ? `<div class="banner banner-info"><p class="banner-title">Already on this plan</p><p class="banner-body">You are already subscribed to <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Select a different plan to switch.</p></div>`
       : '';
+    const hasRemainingPaidAccess = Boolean(activeUntilIso);
+    const hasAccess = hasPlan || hasRemainingPaidAccess;
+    const periodPlanLabel = cancelledPlanLabel || currentPlanLabel;
     const activeUntilBanner = activeUntilIso
-      ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(currentPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
+      ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
       : '';
-    const billingCard = hasPlan
+    const billingCard = hasAccess
       ? isFreeBeta
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
-        : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">Cancel anytime — you'll keep access until the end of your billing period.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a></div></div>`
+        : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`
       : '';
     const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => {
       const isCurrent = hasPlan && p.key === currentPlanKey;
@@ -309,7 +313,7 @@ export class RootController {
     }).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
     const ctaCard = billingCard + plansCard;
 
-    const actionsCard = hasPlan
+    const actionsCard = hasAccess
       ? `<div class="card"><p class="card-title">Actions</p><div class="action-list"><div class="action-item"><a href="${scanRunUrl}" target="_top" class="btn btn-primary"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 3l7 4-7 4V3z" fill="currentColor"/></svg>Run scan</a><span class="action-desc">Analyze your store and generate a prioritized CRO list</span></div><div class="action-item"><a href="${recsPageUrl}" target="_top" class="btn btn-outline">View recommendations</a><span class="action-desc">Browse and export your prioritized recommendations</span></div></div></div>`
       : '<div class="card"><p class="card-text muted" style="font-size:13px;">Run scan and View recommendations unlock after subscribing to a plan below.</p></div>';
 
