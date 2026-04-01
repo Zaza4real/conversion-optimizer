@@ -59,6 +59,25 @@ export class BillingController {
     const planKey = this.resolvePlanKey(plan);
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     try {
+      // Compare to live Shopify subscription first. After reinstall, DB can be stale (e.g. still
+      // "growth" while Shopify already has Pro). Creating the same plan again makes
+      // appSubscriptionCreate fail and shows "Plan change failed" even though Pro is active.
+      try {
+        const live = await this.billing.getActiveSubscriptionInfo(normalized);
+        if (live && live.planKey === planKey) {
+          await this.shops.setPaidPlan(normalized, this.extractSubscriptionTailId(live.id), planKey, {
+            currentPeriodEndIso: live.currentPeriodEnd?.trim() || undefined,
+          });
+          const homeUrl = baseUrl
+            ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&same_plan=1`
+            : `https://${normalized}/admin`;
+          res.redirect(302, homeUrl);
+          return;
+        }
+      } catch (syncErr) {
+        logBillingError('subscribe (live plan check)', syncErr);
+      }
+
       const existing = await this.shops.getByDomain(normalized);
       const samePaidPlan = this.shops.hasPaidPlan(existing)
         && (existing.plan === planKey || (existing.plan === 'paid' && planKey === 'growth'));
@@ -150,5 +169,10 @@ export class BillingController {
       return key;
     }
     return 'growth';
+  }
+
+  private extractSubscriptionTailId(gid: string): string {
+    const m = String(gid).match(/(\d+)$/);
+    return m ? m[1] : String(gid);
   }
 }
