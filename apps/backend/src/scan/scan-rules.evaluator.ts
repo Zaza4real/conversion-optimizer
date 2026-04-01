@@ -37,7 +37,7 @@ function wordCount(html: string): number {
 function bulletCount(html: string): number {
   const fragment = html.replace(/<br\s*\/?>/gi, '\n');
   const lines = fragment.split(/\n/).map((s) => s.trim()).filter(Boolean);
-  const bulletLike = lines.filter((line) => /^[\-\*•]\s/.test(line) || /^<\s*li\s*>/i.test(line));
+  const bulletLike = lines.filter((line) => /^[-*•]\s/.test(line) || /^<\s*li\s*>/i.test(line));
   return bulletLike.length;
 }
 
