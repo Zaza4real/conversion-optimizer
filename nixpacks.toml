@@ -1,11 +1,11 @@
-# Monorepo: npm lockfile lives in apps/backend only. Nixpacks defaults run `npm ci` at repo
-# root and fail without a root package-lock.json. Pin install/build/cwd to the backend app.
+# Monorepo deploy uses pnpm workspace lock at repo root.
+# Build backend via filter to avoid npm lockfile/lifecycle issues.
 [phases.install]
-cmds = ["cd apps/backend && npm ci"]
+cmds = ["pnpm install --frozen-lockfile"]
 
 [phases.build]
 dependsOn = ["install"]
-cmds = ["cd apps/backend && npm run build"]
+cmds = ["pnpm --filter backend run build"]
 
 [start]
-cmd = "cd apps/backend && npm run start"
+cmd = "pnpm --filter backend run start"
