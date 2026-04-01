@@ -1,5 +1,5 @@
-# Railway config for Conversion Optimizer backend (apps/backend)
-# If Railway doesn't use this automatically, set Root Directory to "apps/backend" in the dashboard.
+# Railway config when the service Root Directory is **apps/backend** (lockfile + npm ci here).
+# If the Root Directory is the **monorepo root**, use /railway.toml and /nixpacks.toml instead.
 
 [build]
 builder = "nixpacks"
