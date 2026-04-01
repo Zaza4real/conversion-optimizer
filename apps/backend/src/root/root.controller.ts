@@ -219,8 +219,13 @@ export class RootController {
         currentPlanLabel = activeInfo.planLabel;
         currentPlanKey = activeInfo.planKey;
         activeUntilIso = activeInfo.currentPeriodEnd ?? '';
+        if (!activeInfo.currentPeriodEnd) {
+          console.warn('[Root] Active subscription has no currentPeriodEnd from API; shop=', normalized);
+        }
         // Keep local billing state in sync after reinstall with persisting active Shopify plan.
-        await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey);
+        await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey, {
+          currentPeriodEndIso: activeInfo.currentPeriodEnd?.trim() || undefined,
+        });
       }
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {
@@ -237,6 +242,9 @@ export class RootController {
     const cancelledPlanLabel = (req.query.cancelled_plan as string)?.trim() || '';
     if (!activeUntilIso) {
       activeUntilIso = this.shops.getBillingGraceUntil(existing) ?? '';
+    }
+    if (!activeUntilIso) {
+      activeUntilIso = this.shops.getBillingPeriodEnd(existing) ?? '';
     }
     const cancelledPlanFromState = cancelledPlanLabel || this.shops.getCancelledPlanLabel(existing) || '';
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -306,6 +314,10 @@ export class RootController {
     const activeUntilBanner = activeUntilIso
       ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
       : '';
+    const periodEndFallbackBanner =
+      hasPlan && !activeUntilIso && !isFreeBeta
+        ? `<div class="banner banner-neutral"><p class="banner-title">Active plan</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription is active. To see the exact renewal date, open <strong>Settings → Plan and permissions</strong> in Shopify Admin and choose <strong>Billing</strong>.</p></div>`
+        : '';
     const billingCard = hasAccess
       ? isFreeBeta
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
@@ -423,6 +435,7 @@ export class RootController {
     ${billingBanner}
     ${samePlanBanner}
     ${activeUntilBanner}
+    ${periodEndFallbackBanner}
     <div class="hero-block">
       <p class="hero-text"><strong>Conversion Optimizer</strong> gives you a prioritized list of changes to improve your store's conversion rate. Run a scan, then work through recommendations by severity.</p>
     </div>

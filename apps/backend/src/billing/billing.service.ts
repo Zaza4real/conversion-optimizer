@@ -175,9 +175,13 @@ export class BillingService {
 
     const subscriptionId = this.parseSubscriptionId(chargeId);
     const activeSubscriptions = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
-    const matched = activeSubscriptions.some((s) => this.parseSubscriptionId(s.id) === subscriptionId || s.id === chargeId);
-    if (matched) {
-      await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey);
+    const matchedSub = activeSubscriptions.find(
+      (s) => this.parseSubscriptionId(s.id) === subscriptionId || s.id === chargeId,
+    );
+    if (matchedSub) {
+      await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey, {
+        currentPeriodEndIso: matchedSub.currentPeriodEnd ?? undefined,
+      });
       return;
     }
     console.error('[Billing] Subscription not found or not active', chargeId);

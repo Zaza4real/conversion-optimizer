@@ -71,16 +71,22 @@ export class ShopsService {
     domain: string,
     recurringChargeId: string,
     plan: 'starter' | 'growth' | 'pro' | 'pro_annual' = 'growth',
+    options?: { currentPeriodEndIso?: string | null },
   ): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
       shop.plan = plan;
       shop.recurringChargeId = recurringChargeId;
-      shop.settings = {
+      const merged: Record<string, unknown> = {
         ...(shop.settings ?? {}),
         billingGraceUntil: null,
         cancelledPlanLabel: null,
       };
+      const iso = options?.currentPeriodEndIso != null ? String(options.currentPeriodEndIso).trim() : '';
+      if (iso) {
+        merged['billingPeriodEndIso'] = iso;
+      }
+      shop.settings = merged;
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
@@ -96,6 +102,7 @@ export class ShopsService {
         ...(shop.settings ?? {}),
         billingGraceUntil: billingGraceUntil ?? null,
         cancelledPlanLabel: cancelledPlanLabel ?? null,
+        billingPeriodEndIso: null,
       };
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
@@ -143,6 +150,12 @@ export class ShopsService {
 
   getCancelledPlanLabel(shop: Shop): string | null {
     const raw = (shop.settings ?? {})['cancelledPlanLabel'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+  }
+
+  /** Last known subscription period end from Shopify (persisted when the API returns it). */
+  getBillingPeriodEnd(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['billingPeriodEndIso'];
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
