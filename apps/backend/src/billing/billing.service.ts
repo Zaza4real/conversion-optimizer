@@ -296,6 +296,11 @@ export class BillingService {
         }
       }
     }
+    allSubscriptions(first: 20) {
+      id
+      status
+      currentPeriodEnd
+    }
   }
 }`;
     const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -330,6 +335,11 @@ export class BillingService {
               };
             }[];
           }[];
+          allSubscriptions?: {
+            id?: string;
+            status?: string;
+            currentPeriodEnd?: string;
+          }[];
         };
       };
       errors?: { message?: string }[];
@@ -338,13 +348,22 @@ export class BillingService {
       console.error('[Billing] GraphQL errors', data.errors);
       throw new BadRequestException('Unable to verify subscription.');
     }
-    const subs = data.data?.currentAppInstallation?.activeSubscriptions ?? [];
+    const installation = data.data?.currentAppInstallation;
+    const subs = installation?.activeSubscriptions ?? [];
+    const allById = new Map<string, string>();
+    for (const s of installation?.allSubscriptions ?? []) {
+      const sid = s.id ?? '';
+      const periodEnd = s.currentPeriodEnd ?? '';
+      if (sid && periodEnd) {
+        allById.set(sid, periodEnd);
+      }
+    }
     return subs
       .map((s) => ({
         id: s.id ?? '',
         name: s.name ?? null,
         status: s.status ?? null,
-        currentPeriodEnd: s.currentPeriodEnd ?? null,
+        currentPeriodEnd: s.currentPeriodEnd ?? allById.get(s.id ?? '') ?? null,
         interval: s.lineItems?.[0]?.plan?.pricingDetails?.interval ?? null,
         amount: s.lineItems?.[0]?.plan?.pricingDetails?.price?.amount != null
           ? Number(s.lineItems?.[0]?.plan?.pricingDetails?.price?.amount)
