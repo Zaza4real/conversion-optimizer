@@ -9,8 +9,8 @@
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
-    "railway:build": "pnpm install --frozen-lockfile && pnpm --filter backend run build",
-    "railway:start": "pnpm --filter backend run start"
+    "railway:build": "cd apps/backend && npm ci --ignore-scripts && npm run build",
+    "railway:start": "cd apps/backend && npm run start"
   },
   "engines": {
     "node": ">=20"

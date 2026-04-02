@@ -1,11 +1,10 @@
-# Monorepo deploy uses pnpm workspace lock at repo root.
-# Build backend via filter to avoid npm lockfile/lifecycle issues.
+# Monorepo-root deploy fallback: run backend install/build directly.
 [phases.install]
-cmds = ["pnpm install --frozen-lockfile"]
+cmds = ["cd apps/backend && npm ci --ignore-scripts"]
 
 [phases.build]
 dependsOn = ["install"]
-cmds = ["pnpm --filter backend run build"]
+cmds = ["cd apps/backend && npm run build"]
 
 [start]
-cmd = "pnpm --filter backend run start"
+cmd = "cd apps/backend && npm run start"

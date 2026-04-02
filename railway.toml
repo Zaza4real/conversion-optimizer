@@ -3,6 +3,7 @@
 
 [build]
 builder = "nixpacks"
+buildCommand = "cd apps/backend && npm ci --ignore-scripts && npm run build"
 
 [deploy]
 startCommand = "cd apps/backend && npm run start"
