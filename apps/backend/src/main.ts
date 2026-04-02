@@ -9,6 +9,9 @@ import type { Request, Response, NextFunction } from 'express';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
+  // Visible in Railway instance logs to confirm we deployed the latest code.
+  console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02');
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // keep raw body for webhook HMAC
   });
