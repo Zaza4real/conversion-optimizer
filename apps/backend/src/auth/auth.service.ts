@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes } from 'crypto';
 import { ShopsService } from '../shops/shops.service';
 
-const STATE_TTL_MS = 600_000; // 10 min
+const STATE_TTL_MS = 1_800_000; // 30 min
 const stateStore = new Map<string, { shop: string; expires: number }>();
 
 @Injectable()

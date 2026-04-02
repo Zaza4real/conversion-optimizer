@@ -164,7 +164,14 @@ export class AuthController {
     }
     const shopNorm = this.normalizeShop(shop);
     if (!this.auth.consumeState(state, shopNorm)) {
-      res.status(400).send('Invalid or expired state');
+      // State expired or server restarted (in-memory store wiped). The HMAC above is already
+      // verified so the request is authentic — restart OAuth rather than showing a hard error.
+      console.warn('[Auth] State expired/missing for', shopNorm, '— restarting OAuth');
+      const clientId = this.config.get<string>('SHOPIFY_API_KEY') ?? '';
+      const scopes = this.config.get<string>('SHOPIFY_SCOPES') || 'read_products,read_orders,read_themes';
+      const redirectUri = `${appUrl}/api/auth/callback`;
+      const newState = this.auth.generateState(shopNorm);
+      res.redirect(302, `https://${shopNorm}/admin/oauth/authorize?client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(newState)}`);
       return;
     }
     const { access_token, scope } = await this.auth.exchangeCode(shopNorm, code);

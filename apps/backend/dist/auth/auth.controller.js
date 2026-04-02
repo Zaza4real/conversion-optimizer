@@ -159,7 +159,12 @@ let AuthController = class AuthController {
         }
         const shopNorm = this.normalizeShop(shop);
         if (!this.auth.consumeState(state, shopNorm)) {
-            res.status(400).send('Invalid or expired state');
+            console.warn('[Auth] State expired/missing for', shopNorm, '— restarting OAuth');
+            const clientId = this.config.get('SHOPIFY_API_KEY') ?? '';
+            const scopes = this.config.get('SHOPIFY_SCOPES') || 'read_products,read_orders,read_themes';
+            const redirectUri = `${appUrl}/api/auth/callback`;
+            const newState = this.auth.generateState(shopNorm);
+            res.redirect(302, `https://${shopNorm}/admin/oauth/authorize?client_id=${encodeURIComponent(clientId)}&scope=${encodeURIComponent(scopes)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(newState)}`);
             return;
         }
         const { access_token, scope } = await this.auth.exchangeCode(shopNorm, code);

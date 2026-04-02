@@ -14,7 +14,7 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const crypto_1 = require("crypto");
 const shops_service_1 = require("../shops/shops.service");
-const STATE_TTL_MS = 600_000;
+const STATE_TTL_MS = 1_800_000;
 const stateStore = new Map();
 let AuthService = class AuthService {
     constructor(config, shops) {
