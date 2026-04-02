@@ -1,0 +1,4 @@
+# Override Nixpacks auto-detected install to prevent pnpm workspace install failing.
+# buildCommand in railway.toml already handles the actual install+build steps.
+[phases.install]
+cmds = ["cd apps/backend && npm ci --ignore-scripts"]
