@@ -56,6 +56,8 @@ export declare class BillingService {
     createRecurringCharge(shopDomain: string, planKey?: PlanKey): Promise<CreateChargeResult>;
     confirmAndActivate(shopDomain: string, chargeId: string, planKey?: PlanKey): Promise<void>;
     private parseSubscriptionId;
+    private tryReturnGraceOnlyCancel;
+    private fetchAppSubscriptionStatusByGid;
     cancelSubscription(shopDomain: string): Promise<CancelSubscriptionResult>;
     getActiveSubscriptionInfo(shopDomain: string): Promise<ActiveSubscriptionInfo | null>;
     private getActiveSubscriptionSnapshots;

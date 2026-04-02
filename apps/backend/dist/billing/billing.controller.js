@@ -138,14 +138,19 @@ let BillingController = class BillingController {
             : `https://${normalizedShop}/admin`;
         res.redirect(302, redirectTo);
     }
-    async cancel(shop, res) {
+    async cancel(shop, req, res) {
         const baseUrl = this.config.get('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
         if (!shop?.trim()) {
+            console.warn('[Billing] cancel missing shop query', req.originalUrl);
             res.redirect(302, baseUrl ? `${baseUrl}/?billing_cancel_error=1` : '/');
             return;
         }
         const normalized = this.normalizeShop(shop.trim());
         const homeUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}` : `https://${normalized}/admin`;
+        const appendBillingCancelError = () => {
+            const sep = homeUrl.includes('?') ? '&' : '?';
+            res.redirect(302, `${homeUrl}${sep}billing_cancel_error=1`);
+        };
         try {
             const cancelled = await this.billing.cancelSubscription(normalized);
             const activeUntilParam = cancelled.currentPeriodEnd ? `&active_until=${encodeURIComponent(cancelled.currentPeriodEnd)}` : '';
@@ -161,7 +166,7 @@ let BillingController = class BillingController {
                 return;
             }
             logBillingError('cancel', err);
-            res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
+            appendBillingCancelError();
         }
     }
     normalizeShop(shop) {
@@ -211,9 +216,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)('cancel'),
     __param(0, (0, common_1.Query)('shop')),
-    __param(1, (0, common_1.Res)()),
+    __param(1, (0, common_1.Req)()),
+    __param(2, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, Object, Object]),
     __metadata("design:returntype", Promise)
 ], BillingController.prototype, "cancel", null);
 exports.BillingController = BillingController = __decorate([

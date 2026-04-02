@@ -1,6 +1,6 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { BillingService, PlanKey } from './billing.service';
 import { ShopsService } from '../shops/shops.service';
 
@@ -164,15 +164,21 @@ export class BillingController {
   @Get('cancel')
   async cancel(
     @Query('shop') shop: string | undefined,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     if (!shop?.trim()) {
+      console.warn('[Billing] cancel missing shop query', req.originalUrl);
       res.redirect(302, baseUrl ? `${baseUrl}/?billing_cancel_error=1` : '/');
       return;
     }
     const normalized = this.normalizeShop(shop.trim());
     const homeUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}` : `https://${normalized}/admin`;
+    const appendBillingCancelError = () => {
+      const sep = homeUrl.includes('?') ? '&' : '?';
+      res.redirect(302, `${homeUrl}${sep}billing_cancel_error=1`);
+    };
     try {
       const cancelled = await this.billing.cancelSubscription(normalized);
       const activeUntilParam = cancelled.currentPeriodEnd ? `&active_until=${encodeURIComponent(cancelled.currentPeriodEnd)}` : '';
@@ -187,7 +193,7 @@ export class BillingController {
         return;
       }
       logBillingError('cancel', err);
-      res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
+      appendBillingCancelError();
     }
   }
 

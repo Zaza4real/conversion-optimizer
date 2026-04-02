@@ -1,5 +1,5 @@
 import { ConfigService } from '@nestjs/config';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { BillingService } from './billing.service';
 import { ShopsService } from '../shops/shops.service';
 export declare class BillingController {
@@ -21,7 +21,7 @@ export declare class BillingController {
     }>;
     subscribe(shop: string | undefined, plan: string | undefined, res: Response): Promise<void>;
     return(chargeId: string | undefined, subscriptionId: string | undefined, shop: string | undefined, plan: string | undefined, res: Response): Promise<void>;
-    cancel(shop: string | undefined, res: Response): Promise<void>;
+    cancel(shop: string | undefined, req: Request, res: Response): Promise<void>;
     private normalizeShop;
     private resolvePlanKey;
     private extractSubscriptionTailId;

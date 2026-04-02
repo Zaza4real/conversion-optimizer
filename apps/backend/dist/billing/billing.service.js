@@ -192,18 +192,54 @@ let BillingService = class BillingService {
         const match = s.match(/(\d+)$/);
         return match ? parseInt(match[1], 10) : parseInt(s, 10) || 0;
     }
+    tryReturnGraceOnlyCancel(shop) {
+        const graceUntil = this.shops.getBillingGraceUntil(shop);
+        if (!graceUntil?.trim())
+            return null;
+        const end = new Date(graceUntil);
+        if (Number.isNaN(end.getTime()) || end.getTime() <= Date.now())
+            return null;
+        const planLabel = this.shops.getCancelledPlanLabel(shop) ?? this.shops.getPlanLabel(shop);
+        return { currentPeriodEnd: graceUntil.trim(), planLabel };
+    }
+    async fetchAppSubscriptionStatusByGid(shopDomain, accessToken, gid) {
+        const query = `query SubStatus($id: ID!) { node(id: $id) { ... on AppSubscription { status } } }`;
+        const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+            body: JSON.stringify({ query, variables: { id: gid } }),
+        });
+        if (res.status === 401)
+            this.throwReconnectRequired('fetchAppSubscriptionStatusByGid');
+        if (!res.ok)
+            return null;
+        const data = (await res.json());
+        if (data.errors?.length)
+            return null;
+        const st = data.data?.node?.status;
+        return st ? String(st).toUpperCase() : null;
+    }
     async cancelSubscription(shopDomain) {
         const normalized = this.normalizeDomain(shopDomain);
         const shop = await this.shops.getByDomain(normalized);
         const accessToken = this.shops.getAccessToken(shop);
-        const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
-        if (!active.length) {
-            const settings = (shop.settings ?? {});
-            const graceUntil = typeof settings['billingGraceUntil'] === 'string' ? settings['billingGraceUntil'] : null;
-            const cancelledLabel = typeof settings['cancelledPlanLabel'] === 'string' ? settings['cancelledPlanLabel'] : null;
-            if (graceUntil && new Date(graceUntil) > new Date()) {
-                return { currentPeriodEnd: graceUntil, planLabel: cancelledLabel ?? shop.plan ?? '' };
+        let active;
+        try {
+            active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
+        }
+        catch (e) {
+            const grace = this.tryReturnGraceOnlyCancel(shop);
+            if (grace) {
+                console.warn('[Billing] cancelSubscription: could not list subscriptions; DB has grace — no-op', e);
+                return grace;
             }
+            throw e;
+        }
+        if (!active.length) {
+            const grace = this.tryReturnGraceOnlyCancel(shop);
+            if (grace)
+                return grace;
             await this.shops.clearBilling(normalized, null, null);
             return { currentPeriodEnd: null, planLabel: '' };
         }
@@ -235,6 +271,11 @@ let BillingService = class BillingService {
             this.throwReconnectRequired('cancelSubscription');
         }
         if (!res.ok) {
+            const grace = this.tryReturnGraceOnlyCancel(shop);
+            if (grace) {
+                console.warn('[Billing] cancelSubscription HTTP', res.status, 'failed; DB has grace — no-op');
+                return grace;
+            }
             const text = await res.text();
             console.error('[Billing] cancelSubscription failed', res.status, text);
             throw new common_1.BadRequestException('Unable to cancel subscription. Please try again or cancel from Shopify Settings → Billing.');
@@ -243,12 +284,21 @@ let BillingService = class BillingService {
         const errors = data.errors ?? data.data?.appSubscriptionCancel?.userErrors ?? [];
         if (errors.length) {
             const msg = errors.map((e) => e?.message ?? '').filter(Boolean).join('; ') || 'Subscription could not be cancelled.';
-            const alreadyDone = /already|cancelled|inactive|not active/i.test(msg);
-            if (!alreadyDone) {
+            const alreadyDone = /already|cancel(?:l)?ed|inactive|not active|expired|frozen|declined|ended|no longer|unable to cancel|duplicate|invalid subscription|not found|does not exist|access denied|must be active|not eligible/i.test(msg);
+            let treatAsDone = alreadyDone;
+            if (!treatAsDone) {
+                const nodeStatus = await this.fetchAppSubscriptionStatusByGid(normalized, accessToken, gid);
+                if (nodeStatus && !['ACTIVE', 'PENDING'].includes(nodeStatus)) {
+                    treatAsDone = true;
+                    console.warn('[Billing] cancelSubscription: userErrors but node status is', nodeStatus, '- clearing DB');
+                }
+            }
+            if (!treatAsDone) {
                 console.error('[Billing] cancelSubscription errors', msg);
                 throw new common_1.BadRequestException(msg);
             }
-            console.warn('[Billing] cancelSubscription already cancelled on Shopify side, clearing DB state');
+            if (alreadyDone)
+                console.warn('[Billing] cancelSubscription already handled on Shopify side, clearing DB state');
         }
         const resolved = this.resolvePlanFromSnapshot(target);
         await this.shops.clearBilling(normalized, target.currentPeriodEnd ?? null, resolved.planLabel);
