@@ -60,6 +60,11 @@ export class BillingService {
     private readonly shops: ShopsService,
   ) {}
 
+  private throwReconnectRequired(context: string): never {
+    console.error(`[Billing] ${context}: shop token invalid; reconnect required`);
+    throw new BadRequestException('SHOP_RECONNECT_REQUIRED');
+  }
+
   /**
    * Create a recurring app subscription via GraphQL and return the confirmation URL
    * where the merchant must approve the charge.
@@ -125,6 +130,9 @@ export class BillingService {
       body: JSON.stringify({ query: mutation, variables }),
     });
 
+    if (res.status === 401) {
+      this.throwReconnectRequired('createRecurringCharge');
+    }
     if (!res.ok) {
       const text = await res.text();
       console.error('[Billing] create subscription failed', res.status, text);
@@ -232,6 +240,9 @@ export class BillingService {
       body: JSON.stringify({ query: mutation, variables: { id: gid } }),
     });
 
+    if (res.status === 401) {
+      this.throwReconnectRequired('cancelSubscription');
+    }
     if (!res.ok) {
       const text = await res.text();
       console.error('[Billing] cancelSubscription failed', res.status, text);
@@ -314,6 +325,9 @@ export class BillingService {
       },
       body: JSON.stringify({ query }),
     });
+    if (res.status === 401) {
+      this.throwReconnectRequired('getActiveSubscriptions');
+    }
     if (!res.ok) {
       const text = await res.text();
       console.error('[Billing] getActiveSubscriptions failed', res.status, text);

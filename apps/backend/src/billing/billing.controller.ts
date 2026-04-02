@@ -18,6 +18,11 @@ export class BillingController {
     private readonly shops: ShopsService,
   ) {}
 
+  private needsReconnect(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err ?? '');
+    return msg.includes('SHOP_RECONNECT_REQUIRED');
+  }
+
   /**
    * GET /api/billing/status?shop=example.myshopify.com
    * Returns whether the shop has an active subscription and the upgrade URL if not.
@@ -75,6 +80,13 @@ export class BillingController {
           return;
         }
       } catch (syncErr) {
+        if (this.needsReconnect(syncErr)) {
+          const reconnectUrl = baseUrl
+            ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+            : `https://${normalized}/admin`;
+          res.redirect(302, reconnectUrl);
+          return;
+        }
         logBillingError('subscribe (live plan check)', syncErr);
       }
 
@@ -91,6 +103,13 @@ export class BillingController {
       const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
       res.redirect(302, confirmationUrl);
     } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
       logBillingError('subscribe', err);
       const appUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&billing_error=1` : `https://${normalized}/admin`;
       res.redirect(302, appUrl);
@@ -116,15 +135,22 @@ export class BillingController {
     }
     const normalizedShop = this.normalizeShop(shop.trim());
     const planKey = this.resolvePlanKey(plan);
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     try {
       await this.billing.confirmAndActivate(normalizedShop, id, planKey);
     } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}&reconnect=1`
+          : `https://${normalizedShop}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
       logBillingError('return (confirmAndActivate)', err);
       res.status(400).send('Billing activation failed. Please try again or contact support.');
       return;
     }
     // Redirect back to the app with thank-you state (Shopify will load the app in admin).
-    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     const redirectTo = baseUrl
       ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}&billing_success=1&plan=${encodeURIComponent(planKey)}`
       : `https://${normalizedShop}/admin`;
@@ -153,6 +179,13 @@ export class BillingController {
       const cancelledPlanParam = cancelled.planLabel ? `&cancelled_plan=${encodeURIComponent(cancelled.planLabel)}` : '';
       res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}&cancelled=1${activeUntilParam}${cancelledPlanParam}`);
     } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
       logBillingError('cancel', err);
       res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
     }

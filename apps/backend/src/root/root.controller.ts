@@ -229,6 +229,15 @@ export class RootController {
         });
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err ?? '');
+      if (msg.includes('SHOP_RECONNECT_REQUIRED')) {
+        const reconnectUrl = `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`;
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(
+          `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Conversion Optimizer</title></head><body><p>Refreshing authorization…</p><script>window.top.location.href=${JSON.stringify(reconnectUrl)};</script></body></html>`,
+        );
+        return;
+      }
       if (process.env.NODE_ENV !== 'production') {
         console.warn('[Root] Active billing sync skipped:', err instanceof Error ? err.message : String(err));
       }
