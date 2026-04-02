@@ -7,6 +7,7 @@
     "dev:backend": "pnpm --filter backend exec pnpm run start:dev",
     "dev:admin": "pnpm --filter admin exec pnpm run dev",
     "build": "pnpm -r run build",
+    "build:stamp": "node -e \"console.log('build stamp')\"",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
     "railway:build": "cd apps/backend && npm ci --ignore-scripts && npm run build",
