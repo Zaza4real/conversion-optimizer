@@ -1,7 +1,0 @@
-# Monorepo-root deploy: install deps only; use committed dist/ artefacts.
-# Skipping the build phase avoids Nixpacks layer-cache serving stale compiled JS.
-[phases.install]
-cmds = ["cd apps/backend && npm ci --ignore-scripts"]
-
-[start]
-cmd = "cd apps/backend && node dist/main.js"

@@ -15,7 +15,6 @@
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@9.0.0",
   "devDependencies": {
     "@shopify/cli": "^3.90.1"
   }

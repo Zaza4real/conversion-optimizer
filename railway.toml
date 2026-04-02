@@ -1,8 +1,10 @@
-# Used when the Railway service root is the monorepo root (not apps/backend).
-# No build phase: committed dist/ artefacts are used directly via node dist/main.js.
+# Railway config (monorepo root).
+# buildCommand replaces ALL Nixpacks auto-detected install/build steps.
+# This avoids pnpm-detection failures from root package.json/pnpm-lock.yaml.
 
 [build]
 builder = "nixpacks"
+buildCommand = "cd apps/backend && npm ci --ignore-scripts"
 
 [deploy]
 startCommand = "cd apps/backend && node dist/main.js"
