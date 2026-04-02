@@ -153,6 +153,16 @@ export class ShopsService {
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
+  /** Repair-only: set cancelledPlanLabel in settings without changing plan/grace/token. */
+  async repairCancelledPlanLabel(domain: string, label: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (shop) {
+      shop.settings = { ...(shop.settings ?? {}), cancelledPlanLabel: label };
+      shop.updatedAt = new Date();
+      await this.shopRepo.save(shop);
+    }
+  }
+
   /** Last known subscription period end from Shopify (persisted when the API returns it). */
   getBillingPeriodEnd(shop: Shop): string | null {
     const raw = (shop.settings ?? {})['billingPeriodEndIso'];

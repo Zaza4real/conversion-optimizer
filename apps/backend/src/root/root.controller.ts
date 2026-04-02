@@ -61,6 +61,44 @@ export class RootController {
     res.send(this.getSupportPageHtml(backUrl));
   }
 
+  /**
+   * GET /health/billing-repair?shop=...&plan=pro_annual|pro|growth|starter
+   * One-off DB repair: sets cancelledPlanLabel in settings without touching plan/grace/token.
+   * Use when previous code wiped cancelledPlanLabel; only works if grace period is active.
+   */
+  @Get('health/billing-repair')
+  async billingRepair(@Req() req: Request, @Res() res: Response) {
+    const shop = (req.query.shop as string)?.trim();
+    const plan = (req.query.plan as string)?.trim();
+    if (!shop || !plan) {
+      res.status(400).json({ error: 'Missing shop or plan parameter' });
+      return;
+    }
+    const validPlans: Record<string, string> = {
+      pro_annual: 'Pro Annual',
+      pro: 'Pro',
+      growth: 'Growth',
+      starter: 'Starter',
+    };
+    const planLabel = validPlans[plan];
+    if (!planLabel) {
+      res.status(400).json({ error: 'Invalid plan. Use: pro_annual, pro, growth, starter' });
+      return;
+    }
+    const normalized = this.normalizeShop(shop);
+    try {
+      const existing = await this.shops.findByDomain(normalized);
+      if (!existing) {
+        res.status(404).json({ error: 'Shop not found' });
+        return;
+      }
+      await this.shops.repairCancelledPlanLabel(normalized, planLabel);
+      res.json({ ok: true, shop: normalized, cancelledPlanLabel: planLabel, message: `cancelledPlanLabel set to "${planLabel}". Reload the app.` });
+    } catch (e) {
+      res.status(500).json({ error: String(e instanceof Error ? e.message : e) });
+    }
+  }
+
   /** GET /landing — Premium marketing landing page for the app (store owners, not product catalog). */
   @Get('landing')
   landing(@Req() req: Request, @Res() res: Response) {
@@ -269,6 +307,28 @@ export class RootController {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
+
+    // Debug panel: append ?debug_billing=1 to see live computed values for any store.
+    if (String(req.query.debug_billing) === '1') {
+      const debugPayload = {
+        db_plan: existing.plan,
+        db_recurringChargeId: existing.recurringChargeId ?? null,
+        db_settings_billingGraceUntil: this.shops.getBillingGraceUntil(existing),
+        db_settings_cancelledPlanLabel: this.shops.getCancelledPlanLabel(existing),
+        db_settings_billingPeriodEnd: this.shops.getBillingPeriodEnd(existing),
+        hasPlan,
+        currentPlanLabel,
+        currentPlanKey,
+        cancelledPlanFromState,
+        activeUntilIso,
+        cancelGraceActive,
+        gridPlanKeyWouldBe: this.planKeyFromLabel(cancelledPlanFromState || currentPlanLabel),
+      };
+      res.setHeader('Content-Type', 'application/json');
+      res.send(JSON.stringify(debugPayload, null, 2));
+      return;
+    }
+
     res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanFromState));
   }
 
