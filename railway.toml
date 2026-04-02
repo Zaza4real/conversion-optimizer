@@ -1,12 +1,10 @@
 # Used when the Railway service root is the monorepo root (not apps/backend).
-# Nixpacks + nixpacks.toml run install/build in apps/backend. Deploy hooks use the same cwd.
+# No build phase: committed dist/ artefacts are used directly via node dist/main.js.
 
 [build]
 builder = "nixpacks"
-buildCommand = "cd apps/backend && npm ci --ignore-scripts && npm run build"
 
 [deploy]
 startCommand = "cd apps/backend && node dist/main.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-preDeployCommand = "cd apps/backend && node run-recommendations-index-migration.js"
