@@ -413,7 +413,7 @@ let RootController = RootController_1 = class RootController {
     .banner-neutral{background:#f5f7fa;border:1px solid #d8dee7;color:#334155}
     .banner-title{font-weight:700;margin:0 0 4px}
     .banner-body{margin:0;line-height:1.5}
-    .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5;border-left:4px solid #008060}
+    .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5}
     .hero-text{font-size:14px;color:#44474a;line-height:1.65;margin:0}
     .hero-text strong{color:#202223}
     .features-card{background:#fff;border:1px solid #e1e3e5;border-radius:10px;padding:20px 22px;margin-bottom:16px}
