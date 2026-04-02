@@ -34,7 +34,13 @@ export class RootController {
   @Get('health')
   health(@Res() res: Response) {
     res.setHeader('Content-Type', 'application/json');
-    res.status(200).send(JSON.stringify({ status: 'ok', app: 'Conversion Optimizer' }));
+    res.status(200).send(
+      JSON.stringify({
+        status: 'ok',
+        app: 'Conversion Optimizer',
+        buildMarker: 'BUILD_MARKER_2026-04-02T11:55Z_FIX_BILLING_DEBUG',
+      }),
+    );
   }
 
   /** GET /privacy — Privacy policy (for Shopify Partners App setup). ?return_to=URL used for "Back" link. */
