@@ -29,6 +29,7 @@ interface ActiveSubscriptionSnapshot {
   id: string;
   name?: string | null;
   status?: string | null;
+  createdAt?: string | null;
   currentPeriodEnd?: string | null;
   interval?: string | null;
   amount?: number | null;
@@ -265,7 +266,7 @@ export class BillingService {
     const accessToken = this.shops.getAccessToken(shop);
     const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
     if (!active.length) return null;
-    const target = active[0];
+    const target = this.pickPreferredActiveSubscription(active, shop.recurringChargeId ?? undefined);
     const resolved = this.resolvePlanFromSnapshot(target);
     return {
       id: target.id,
@@ -283,6 +284,7 @@ export class BillingService {
       id
       name
       status
+      createdAt
       currentPeriodEnd
       lineItems {
         plan {
@@ -324,6 +326,7 @@ export class BillingService {
             id?: string;
             name?: string;
             status?: string;
+            createdAt?: string;
             currentPeriodEnd?: string;
             lineItems?: {
               plan?: {
@@ -363,6 +366,7 @@ export class BillingService {
         id: s.id ?? '',
         name: s.name ?? null,
         status: s.status ?? null,
+        createdAt: s.createdAt ?? null,
         currentPeriodEnd: s.currentPeriodEnd ?? allById.get(s.id ?? '') ?? null,
         interval: s.lineItems?.[0]?.plan?.pricingDetails?.interval ?? null,
         amount: s.lineItems?.[0]?.plan?.pricingDetails?.price?.amount != null
@@ -370,6 +374,31 @@ export class BillingService {
           : null,
       }))
       .filter((s) => Boolean(s.id));
+  }
+
+  private pickPreferredActiveSubscription(active: ActiveSubscriptionSnapshot[], preferredRecurringChargeId?: string): ActiveSubscriptionSnapshot {
+    const preferredId = preferredRecurringChargeId?.trim()
+      ? `gid://shopify/AppSubscription/${preferredRecurringChargeId.replace(/\D/g, '') || preferredRecurringChargeId}`
+      : '';
+    if (preferredId) {
+      const exact = active.find((s) => s.id === preferredId);
+      if (exact) return exact;
+      const numeric = this.parseSubscriptionId(preferredRecurringChargeId as string);
+      const byNumeric = active.find((s) => this.parseSubscriptionId(s.id) === numeric);
+      if (byNumeric) return byNumeric;
+    }
+    const sorted = [...active].sort((a, b) => {
+      const amountA = Number.isFinite(a.amount ?? NaN) ? Number(a.amount) : -1;
+      const amountB = Number.isFinite(b.amount ?? NaN) ? Number(b.amount) : -1;
+      if (amountA !== amountB) return amountB - amountA;
+      const annualA = String(a.interval ?? '').toUpperCase() === 'ANNUAL' ? 1 : 0;
+      const annualB = String(b.interval ?? '').toUpperCase() === 'ANNUAL' ? 1 : 0;
+      if (annualA !== annualB) return annualB - annualA;
+      const createdA = Date.parse(String(a.createdAt ?? ''));
+      const createdB = Date.parse(String(b.createdAt ?? ''));
+      return (Number.isNaN(createdB) ? 0 : createdB) - (Number.isNaN(createdA) ? 0 : createdA);
+    });
+    return sorted[0];
   }
 
   private resolvePlanFromSnapshot(sub: ActiveSubscriptionSnapshot): { planKey: PlanKey; planLabel: string } {
