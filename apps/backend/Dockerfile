@@ -2,20 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy lockfile + package manifest first (better layer caching)
-COPY package.json package-lock.json ./
+# Copy package.json first for better layer caching
+COPY package.json ./
 
 # Install all deps (including devDependencies needed for nest build)
-RUN npm ci --ignore-scripts
+# Using npm install (not npm ci) so Railway's cached build layers don't break
+RUN npm install --ignore-scripts --no-audit --no-fund
 
-# Copy source
+# Copy source (includes committed dist/ so node dist/main.js works immediately)
 COPY . .
 
-# Build NestJS app
+# Build NestJS app from latest TypeScript source
 RUN npm run build
-
-# Drop devDependencies for a leaner runtime image
-RUN npm prune --production
 
 EXPOSE 3000
 
