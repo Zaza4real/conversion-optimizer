@@ -424,7 +424,9 @@ export class BillingService {
     if (name.includes('starter')) return { planKey: 'starter', planLabel: 'Starter' };
     if (name.includes('growth')) return { planKey: 'growth', planLabel: 'Growth' };
     if (String(sub.interval).toUpperCase() === 'ANNUAL') return { planKey: 'pro_annual', planLabel: 'Pro Annual' };
+    if (sub.amount === 290) return { planKey: 'pro_annual', planLabel: 'Pro Annual' };
     if (sub.amount === 29) return { planKey: 'pro', planLabel: 'Pro' };
+    if (sub.amount === 19) return { planKey: 'growth', planLabel: 'Growth' };
     if (sub.amount === 9) return { planKey: 'starter', planLabel: 'Starter' };
     return { planKey: 'growth', planLabel: 'Growth' };
   }

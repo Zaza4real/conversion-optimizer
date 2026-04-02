@@ -330,6 +330,8 @@ export class RootController {
     const hasRemainingPaidAccess = Boolean(activeUntilIso);
     const hasAccess = hasPlan || hasRemainingPaidAccess;
     const periodPlanLabel = cancelledPlanLabel || currentPlanLabel;
+    // Plans grid must match the same name shown in billing/banners (periodPlanLabel), not currentPlanKey alone.
+    const gridPlanKey = isFreeBeta ? '' : this.planKeyFromLabel(periodPlanLabel);
     const activeUntilBanner = activeUntilIso
       ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
       : '';
@@ -343,7 +345,7 @@ export class RootController {
         : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`
       : '';
     const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid">${plansDisplay.map((p) => {
-      const isCurrent = hasPlan && p.key === currentPlanKey;
+      const isCurrent = hasPlan && gridPlanKey !== '' && p.key === gridPlanKey;
       return `<div class="plan-card${p.popular ? ' plan-popular' : ''}${isCurrent ? ' plan-card-current' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${isCurrent ? '<span class="plan-current-badge">Current</span>' : p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap">${isCurrent ? '<span class="btn-plan btn-plan-disabled">Current plan</span>' : `<a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a>`}</div></div>`;
     }).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
     const ctaCard = billingCard + plansCard;
