@@ -58,6 +58,7 @@ async function bootstrap() {
       { path: 'billing/confirm', method: RequestMethod.GET },
       { path: 'billing/cancel-confirm', method: RequestMethod.GET },
       { path: 'health', method: RequestMethod.GET },
+      { path: 'health/billing-repair', method: RequestMethod.GET },
     ],
   });
 

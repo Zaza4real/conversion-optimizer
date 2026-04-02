@@ -44,6 +44,7 @@ async function bootstrap() {
             { path: 'billing/confirm', method: common_1.RequestMethod.GET },
             { path: 'billing/cancel-confirm', method: common_1.RequestMethod.GET },
             { path: 'health', method: common_1.RequestMethod.GET },
+            { path: 'health/billing-repair', method: common_1.RequestMethod.GET },
         ],
     });
     const port = process.env.PORT || 4000;
