@@ -38,7 +38,7 @@ export class RootController {
       JSON.stringify({
         status: 'ok',
         app: 'Conversion Optimizer',
-        buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v1',
+        buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v2',
       }),
     );
   }
@@ -307,7 +307,15 @@ export class RootController {
     }
     const samePlan = String(req.query.same_plan) === '1';
     const welcomeFresh = String(req.query.welcome) === '1';
-    const welcomeBack = String(req.query.welcome_back) === '1';
+    // Also detect reinstall via settings.lastUninstalledAt when ?welcome_back=1 was not set
+    // (happens when app_uninstalled webhook fires after OAuth — race condition).
+    const lastUninstalledAt = typeof (existing.settings ?? {})['lastUninstalledAt'] === 'string'
+      ? String(existing.settings['lastUninstalledAt'])
+      : null;
+    const welcomeBack = String(req.query.welcome_back) === '1' || Boolean(lastUninstalledAt && !welcomeFresh);
+    if (welcomeBack && lastUninstalledAt) {
+      void this.shops.clearLastUninstalledAt(normalized);
+    }
     const cancelledPlanLabel = (req.query.cancelled_plan as string)?.trim() || '';
     if (!activeUntilIso) {
       activeUntilIso = this.shops.getBillingGraceUntil(existing) ?? '';

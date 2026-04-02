@@ -39,7 +39,7 @@ let RootController = RootController_1 = class RootController {
         res.status(200).send(JSON.stringify({
             status: 'ok',
             app: 'Conversion Optimizer',
-            buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v1',
+            buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v2',
         }));
     }
     privacy(req, res) {
@@ -261,7 +261,13 @@ let RootController = RootController_1 = class RootController {
         }
         const samePlan = String(req.query.same_plan) === '1';
         const welcomeFresh = String(req.query.welcome) === '1';
-        const welcomeBack = String(req.query.welcome_back) === '1';
+        const lastUninstalledAt = typeof (existing.settings ?? {})['lastUninstalledAt'] === 'string'
+            ? String(existing.settings['lastUninstalledAt'])
+            : null;
+        const welcomeBack = String(req.query.welcome_back) === '1' || Boolean(lastUninstalledAt && !welcomeFresh);
+        if (welcomeBack && lastUninstalledAt) {
+            void this.shops.clearLastUninstalledAt(normalized);
+        }
         const cancelledPlanLabel = req.query.cancelled_plan?.trim() || '';
         if (!activeUntilIso) {
             activeUntilIso = this.shops.getBillingGraceUntil(existing) ?? '';

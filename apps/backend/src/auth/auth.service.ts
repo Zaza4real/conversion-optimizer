@@ -63,7 +63,8 @@ export class AuthService {
     return { access_token: data.access_token, scope: data.scope };
   }
 
-  async saveShopAndToken(shop: string, accessToken: string, scope?: string): Promise<void> {
-    await this.shops.upsertWithToken(shop, accessToken, scope);
+  async saveShopAndToken(shop: string, accessToken: string, scope?: string): Promise<{ wasUninstalled: boolean; isNew: boolean }> {
+    const result = await this.shops.upsertWithToken(shop, accessToken, scope);
+    return { wasUninstalled: result.wasUninstalled, isNew: result.isNew };
   }
 }

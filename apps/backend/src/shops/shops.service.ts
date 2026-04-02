@@ -33,16 +33,26 @@ export class ShopsService {
     return shop;
   }
 
-  async upsertWithToken(domain: string, accessToken: string, scope?: string): Promise<Shop> {
+  async upsertWithToken(domain: string, accessToken: string, scope?: string): Promise<{ shop: Shop; wasUninstalled: boolean; isNew: boolean }> {
     const normalized = this.normalizeDomain(domain);
     const encrypted = this.encryption.encrypt(accessToken);
     let shop = await this.findByDomain(normalized);
     if (shop) {
+      const wasUninstalled = shop.uninstalledAt != null;
       shop.accessTokenEnc = encrypted;
       shop.scope = scope ?? shop.scope;
+      if (wasUninstalled && shop.uninstalledAt) {
+        // Persist the uninstall time in settings before clearing the column
+        // so auth callback can detect reinstall even if webhook fires after OAuth
+        shop.settings = {
+          ...(shop.settings ?? {}),
+          lastUninstalledAt: shop.uninstalledAt.toISOString(),
+        };
+      }
       shop.uninstalledAt = null;
       shop.updatedAt = new Date();
-      return this.shopRepo.save(shop);
+      await this.shopRepo.save(shop);
+      return { shop, wasUninstalled, isNew: false };
     }
     shop = this.shopRepo.create({
       domain: normalized,
@@ -51,7 +61,20 @@ export class ShopsService {
       plan: 'free',
       settings: {},
     });
-    return this.shopRepo.save(shop);
+    await this.shopRepo.save(shop);
+    return { shop, wasUninstalled: false, isNew: true };
+  }
+
+  /** Clear the lastUninstalledAt flag after we've used it (e.g., shown welcome_back). */
+  async clearLastUninstalledAt(domain: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (shop && (shop.settings ?? {})['lastUninstalledAt']) {
+      const s = { ...(shop.settings ?? {}) };
+      delete s['lastUninstalledAt'];
+      shop.settings = s;
+      shop.updatedAt = new Date();
+      await this.shopRepo.save(shop);
+    }
   }
 
   getAccessToken(shop: Shop): string {
@@ -62,6 +85,11 @@ export class ShopsService {
     const shop = await this.findByDomain(domain);
     if (shop) {
       shop.uninstalledAt = new Date();
+      shop.settings = {
+        ...(shop.settings ?? {}),
+        lastUninstalledAt: shop.uninstalledAt.toISOString(),
+      };
+      shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
   }
@@ -144,16 +172,29 @@ export class ShopsService {
   }
 
   /**
-   * True when the merchant already cancelled in our app / DB: future grace window, or free plan with a stored cancelled label.
-   * Used to skip overwriting those settings from a live Shopify sync and to hide the Cancel control in the UI.
+   * True when the merchant already cancelled: future grace/period window OR free plan with a
+   * stored cancelled label. Also treats a paid plan with NO recurringChargeId as cancelled (can
+   * happen when Shopify sync re-sets plan but our clearBilling call already wiped the charge id).
+   * Used to skip Shopify sync overwrites and to disable the Cancel control in the UI.
    */
   isBillingCancelledPending(shop: Shop): boolean {
-    const until = this.getBillingGraceUntil(shop);
-    if (until?.trim()) {
-      const d = new Date(until);
+    // Explicit grace period from cancel flow
+    const grace = this.getBillingGraceUntil(shop);
+    if (grace?.trim()) {
+      const d = new Date(grace);
       if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now()) return true;
     }
+    // Free plan with a saved cancelled label
     if (shop.plan === 'free' && this.getCancelledPlanLabel(shop)?.trim()) return true;
+    // Paid plan tier but no active charge id — subscription was cleared but plan label lingers
+    const paidPlan = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'pro_annual';
+    if (paidPlan && !shop.recurringChargeId?.trim()) {
+      const periodEnd = this.getBillingPeriodEnd(shop);
+      if (periodEnd?.trim()) {
+        const d = new Date(periodEnd);
+        if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now()) return true;
+      }
+    }
     return false;
   }
 

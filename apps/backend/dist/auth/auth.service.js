@@ -68,7 +68,8 @@ let AuthService = class AuthService {
         return { access_token: data.access_token, scope: data.scope };
     }
     async saveShopAndToken(shop, accessToken, scope) {
-        await this.shops.upsertWithToken(shop, accessToken, scope);
+        const result = await this.shops.upsertWithToken(shop, accessToken, scope);
+        return { wasUninstalled: result.wasUninstalled, isNew: result.isNew };
     }
 };
 exports.AuthService = AuthService;

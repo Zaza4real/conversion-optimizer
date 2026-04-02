@@ -46,11 +46,19 @@ let ShopsService = class ShopsService {
         const encrypted = this.encryption.encrypt(accessToken);
         let shop = await this.findByDomain(normalized);
         if (shop) {
+            const wasUninstalled = shop.uninstalledAt != null;
             shop.accessTokenEnc = encrypted;
             shop.scope = scope ?? shop.scope;
+            if (wasUninstalled && shop.uninstalledAt) {
+                shop.settings = {
+                    ...(shop.settings ?? {}),
+                    lastUninstalledAt: shop.uninstalledAt.toISOString(),
+                };
+            }
             shop.uninstalledAt = null;
             shop.updatedAt = new Date();
-            return this.shopRepo.save(shop);
+            await this.shopRepo.save(shop);
+            return { shop, wasUninstalled, isNew: false };
         }
         shop = this.shopRepo.create({
             domain: normalized,
@@ -59,7 +67,18 @@ let ShopsService = class ShopsService {
             plan: 'free',
             settings: {},
         });
-        return this.shopRepo.save(shop);
+        await this.shopRepo.save(shop);
+        return { shop, wasUninstalled: false, isNew: true };
+    }
+    async clearLastUninstalledAt(domain) {
+        const shop = await this.findByDomain(this.normalizeDomain(domain));
+        if (shop && (shop.settings ?? {})['lastUninstalledAt']) {
+            const s = { ...(shop.settings ?? {}) };
+            delete s['lastUninstalledAt'];
+            shop.settings = s;
+            shop.updatedAt = new Date();
+            await this.shopRepo.save(shop);
+        }
     }
     getAccessToken(shop) {
         return this.encryption.decrypt(shop.accessTokenEnc);
@@ -68,6 +87,11 @@ let ShopsService = class ShopsService {
         const shop = await this.findByDomain(domain);
         if (shop) {
             shop.uninstalledAt = new Date();
+            shop.settings = {
+                ...(shop.settings ?? {}),
+                lastUninstalledAt: shop.uninstalledAt.toISOString(),
+            };
+            shop.updatedAt = new Date();
             await this.shopRepo.save(shop);
         }
     }
@@ -144,14 +168,23 @@ let ShopsService = class ShopsService {
         return 'Free';
     }
     isBillingCancelledPending(shop) {
-        const until = this.getBillingGraceUntil(shop);
-        if (until?.trim()) {
-            const d = new Date(until);
+        const grace = this.getBillingGraceUntil(shop);
+        if (grace?.trim()) {
+            const d = new Date(grace);
             if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now())
                 return true;
         }
         if (shop.plan === 'free' && this.getCancelledPlanLabel(shop)?.trim())
             return true;
+        const paidPlan = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'pro_annual';
+        if (paidPlan && !shop.recurringChargeId?.trim()) {
+            const periodEnd = this.getBillingPeriodEnd(shop);
+            if (periodEnd?.trim()) {
+                const d = new Date(periodEnd);
+                if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now())
+                    return true;
+            }
+        }
         return false;
     }
     getBillingGraceUntil(shop) {

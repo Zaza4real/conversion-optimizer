@@ -10,7 +10,12 @@ export declare class ShopsService {
     findByDomain(domain: string): Promise<Shop | null>;
     getById(id: string): Promise<Shop>;
     getByDomain(domain: string): Promise<Shop>;
-    upsertWithToken(domain: string, accessToken: string, scope?: string): Promise<Shop>;
+    upsertWithToken(domain: string, accessToken: string, scope?: string): Promise<{
+        shop: Shop;
+        wasUninstalled: boolean;
+        isNew: boolean;
+    }>;
+    clearLastUninstalledAt(domain: string): Promise<void>;
     getAccessToken(shop: Shop): string;
     markUninstalled(domain: string): Promise<void>;
     setPaidPlan(domain: string, recurringChargeId: string, plan?: 'starter' | 'growth' | 'pro' | 'pro_annual', options?: {

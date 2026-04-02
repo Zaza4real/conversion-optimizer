@@ -11,5 +11,8 @@ export declare class AuthService {
         access_token: string;
         scope?: string;
     }>;
-    saveShopAndToken(shop: string, accessToken: string, scope?: string): Promise<void>;
+    saveShopAndToken(shop: string, accessToken: string, scope?: string): Promise<{
+        wasUninstalled: boolean;
+        isNew: boolean;
+    }>;
 }
