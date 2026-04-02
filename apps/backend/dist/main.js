@@ -8,7 +8,7 @@ const express = require("express");
 const compression = require("compression");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 async function bootstrap() {
-    console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02');
+    console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02T14:30Z_NODIST_FIX');
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         rawBody: true,
     });

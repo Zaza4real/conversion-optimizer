@@ -1,10 +1,7 @@
 # Nixpacks config when Railway service Root Directory is apps/backend.
+# Build phase removed: committed dist/ artefacts are used directly.
 [phases.install]
 cmds = ["npm ci --ignore-scripts"]
 
-[phases.build]
-dependsOn = ["install"]
-cmds = ["npm run build"]
-
 [start]
-cmd = "npm run start"
+cmd = "node dist/main.js"

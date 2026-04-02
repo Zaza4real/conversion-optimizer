@@ -38,7 +38,7 @@ export class RootController {
       JSON.stringify({
         status: 'ok',
         app: 'Conversion Optimizer',
-        buildMarker: 'BUILD_MARKER_2026-04-02T11:55Z',
+        buildMarker: 'BUILD_MARKER_2026-04-02T14:30Z_NODIST_FIX',
       }),
     );
   }
