@@ -210,23 +210,28 @@ export class RootController {
     let hasPlan = this.shops.hasPaidPlan(existing);
     let currentPlanLabel = this.shops.getPlanLabel(existing);
     let currentPlanKey = this.planKeyFromLabel(currentPlanLabel);
-    let syncedFromActiveInfo = false;
     let activeUntilIso = (req.query.active_until as string)?.trim() || '';
+    // After cancel, Shopify may still return an "active" subscription until period end, but our DB is
+    // plan=free + grace + cancelledPlanLabel. setPaidPlan() would wipe grace/label and mis-label tier.
+    const cancelGraceActive =
+      existing.plan === 'free' &&
+      Boolean(this.shops.getBillingGraceUntil(existing) || this.shops.getCancelledPlanLabel(existing));
     try {
       const activeInfo = await this.billing.getActiveSubscriptionInfo(normalized);
       if (activeInfo) {
-        syncedFromActiveInfo = true;
         hasPlan = true;
-        currentPlanLabel = activeInfo.planLabel;
-        currentPlanKey = activeInfo.planKey;
-        activeUntilIso = activeInfo.currentPeriodEnd ?? '';
+        activeUntilIso = activeInfo.currentPeriodEnd ?? activeUntilIso;
         if (!activeInfo.currentPeriodEnd) {
           console.warn('[Root] Active subscription has no currentPeriodEnd from API; shop=', normalized);
         }
-        // Keep local billing state in sync after reinstall with persisting active Shopify plan.
-        await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey, {
-          currentPeriodEndIso: activeInfo.currentPeriodEnd?.trim() || undefined,
-        });
+        if (!cancelGraceActive) {
+          currentPlanLabel = activeInfo.planLabel;
+          currentPlanKey = activeInfo.planKey;
+          // Keep local billing state in sync after reinstall with persisting active Shopify plan.
+          await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey, {
+            currentPeriodEndIso: activeInfo.currentPeriodEnd?.trim() || undefined,
+          });
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err ?? '');
@@ -257,7 +262,7 @@ export class RootController {
       activeUntilIso = this.shops.getBillingPeriodEnd(existing) ?? '';
     }
     const cancelledPlanFromState = cancelledPlanLabel || this.shops.getCancelledPlanLabel(existing) || '';
-    if (cancelledPlanFromState && !syncedFromActiveInfo) {
+    if (cancelledPlanFromState.trim()) {
       currentPlanLabel = cancelledPlanFromState;
       currentPlanKey = this.planKeyFromLabel(cancelledPlanFromState);
     }
