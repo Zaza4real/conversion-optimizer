@@ -277,7 +277,19 @@ export class BillingService {
     const shop = await this.shops.getByDomain(normalized);
     const accessToken = this.shops.getAccessToken(shop);
     const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
-    if (!active.length) throw new BadRequestException('No active subscription to cancel.');
+    if (!active.length) {
+      // No live subscription on Shopify — check if we have a grace period in our DB.
+      const settings = (shop.settings ?? {}) as Record<string, unknown>;
+      const graceUntil = typeof settings['billingGraceUntil'] === 'string' ? settings['billingGraceUntil'] : null;
+      const cancelledLabel = typeof settings['cancelledPlanLabel'] === 'string' ? settings['cancelledPlanLabel'] : null;
+      if (graceUntil && new Date(graceUntil) > new Date()) {
+        // Already cancelled on Shopify; just return the grace period info (no-op).
+        return { currentPeriodEnd: graceUntil, planLabel: cancelledLabel ?? shop.plan ?? '' };
+      }
+      // Truly no subscription — clear DB state and return gracefully.
+      await this.shops.clearBilling(normalized, null, null);
+      return { currentPeriodEnd: null, planLabel: '' };
+    }
 
     const preferredId = shop.recurringChargeId?.trim()
       ? `gid://shopify/AppSubscription/${shop.recurringChargeId.replace(/\D/g, '') || shop.recurringChargeId}`
@@ -321,8 +333,13 @@ export class BillingService {
     const errors = data.errors ?? data.data?.appSubscriptionCancel?.userErrors ?? [];
     if (errors.length) {
       const msg = errors.map((e: { message?: string }) => e?.message ?? '').filter(Boolean).join('; ') || 'Subscription could not be cancelled.';
-      console.error('[Billing] cancelSubscription errors', msg);
-      throw new BadRequestException(msg);
+      // If Shopify says the subscription is already cancelled/inactive, treat as success.
+      const alreadyDone = /already|cancelled|inactive|not active/i.test(msg);
+      if (!alreadyDone) {
+        console.error('[Billing] cancelSubscription errors', msg);
+        throw new BadRequestException(msg);
+      }
+      console.warn('[Billing] cancelSubscription already cancelled on Shopify side, clearing DB state');
     }
 
     const resolved = this.resolvePlanFromSnapshot(target);

@@ -197,8 +197,16 @@ let BillingService = class BillingService {
         const shop = await this.shops.getByDomain(normalized);
         const accessToken = this.shops.getAccessToken(shop);
         const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
-        if (!active.length)
-            throw new common_1.BadRequestException('No active subscription to cancel.');
+        if (!active.length) {
+            const settings = (shop.settings ?? {});
+            const graceUntil = typeof settings['billingGraceUntil'] === 'string' ? settings['billingGraceUntil'] : null;
+            const cancelledLabel = typeof settings['cancelledPlanLabel'] === 'string' ? settings['cancelledPlanLabel'] : null;
+            if (graceUntil && new Date(graceUntil) > new Date()) {
+                return { currentPeriodEnd: graceUntil, planLabel: cancelledLabel ?? shop.plan ?? '' };
+            }
+            await this.shops.clearBilling(normalized, null, null);
+            return { currentPeriodEnd: null, planLabel: '' };
+        }
         const preferredId = shop.recurringChargeId?.trim()
             ? `gid://shopify/AppSubscription/${shop.recurringChargeId.replace(/\D/g, '') || shop.recurringChargeId}`
             : '';
@@ -235,8 +243,12 @@ let BillingService = class BillingService {
         const errors = data.errors ?? data.data?.appSubscriptionCancel?.userErrors ?? [];
         if (errors.length) {
             const msg = errors.map((e) => e?.message ?? '').filter(Boolean).join('; ') || 'Subscription could not be cancelled.';
-            console.error('[Billing] cancelSubscription errors', msg);
-            throw new common_1.BadRequestException(msg);
+            const alreadyDone = /already|cancelled|inactive|not active/i.test(msg);
+            if (!alreadyDone) {
+                console.error('[Billing] cancelSubscription errors', msg);
+                throw new common_1.BadRequestException(msg);
+            }
+            console.warn('[Billing] cancelSubscription already cancelled on Shopify side, clearing DB state');
         }
         const resolved = this.resolvePlanFromSnapshot(target);
         await this.shops.clearBilling(normalized, target.currentPeriodEnd ?? null, resolved.planLabel);
