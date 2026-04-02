@@ -2,11 +2,11 @@
 # If the Root Directory is the **monorepo root**, use /railway.toml and /nixpacks.toml instead.
 
 [build]
-builder = "nixpacks"
-buildCommand = "npm ci --ignore-scripts && npm run build"
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "npm run start"
+startCommand = "node dist/main.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 # Run DB migration (recommendations index) before each deploy. Uses DATABASE_URL from Railway.
