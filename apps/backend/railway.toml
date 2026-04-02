@@ -1,9 +1,3 @@
-# Railway config when the service Root Directory is apps/backend.
-# Uses Nixpacks (not Dockerfile) to avoid build-context / cache issues.
-
-[build]
-builder = "nixpacks"
-
 [deploy]
 startCommand = "node dist/main.js"
 restartPolicyType = "on_failure"
