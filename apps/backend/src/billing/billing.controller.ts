@@ -1,8 +1,14 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import { BillingService } from './billing.service';
+import { BillingService, PlanKey } from './billing.service';
 import { ShopsService } from '../shops/shops.service';
+
+function logBillingError(step: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`[Billing] ${step} failed:`, msg);
+  if (err instanceof Error && err.stack) console.error(err.stack);
+}
 
 @Controller('billing')
 export class BillingController {
@@ -12,53 +18,114 @@ export class BillingController {
     private readonly shops: ShopsService,
   ) {}
 
+  private needsReconnect(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err ?? '');
+    return msg.includes('SHOP_RECONNECT_REQUIRED');
+  }
+
   /**
    * GET /api/billing/status?shop=example.myshopify.com
    * Returns whether the shop has an active subscription and the upgrade URL if not.
    */
   @Get('status')
   async status(@Query('shop') shop: string | undefined) {
+    const billingTestRaw = this.config.get<string>('BILLING_TEST') ?? '';
+    const testMode = /^(true|1)$/i.test(String(billingTestRaw).trim());
     if (!shop?.trim()) {
-      return { subscribed: false, error: 'Missing shop' };
+      return { subscribed: false, error: 'Missing shop', testMode };
     }
-    const normalized = shop.trim().toLowerCase().replace(/%2E/g, '.');
+    const normalized = this.normalizeShop(shop.trim());
     try {
       const s = await this.shops.getByDomain(normalized);
       const subscribed = this.shops.hasPaidPlan(s);
       const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
       const upgradeUrl = baseUrl ? `${baseUrl}/api/billing/subscribe?shop=${encodeURIComponent(s.domain)}` : undefined;
-      return { subscribed, upgradeUrl: subscribed ? undefined : upgradeUrl };
+      return { subscribed, upgradeUrl: subscribed ? undefined : upgradeUrl, testMode };
     } catch {
-      return { subscribed: false, error: 'Shop not found' };
+      return { subscribed: false, error: 'Shop not found', testMode };
     }
   }
 
   /**
-   * GET /api/billing/subscribe?shop=example.myshopify.com
-   * Creates a $19/month recurring charge and redirects the merchant to Shopify's confirmation page.
+   * GET /api/billing/subscribe?shop=...&plan=starter|growth|pro|pro_annual
+   * Creates a recurring charge for the chosen plan and redirects to Shopify's confirmation page.
    */
   @Get('subscribe')
   async subscribe(
     @Query('shop') shop: string | undefined,
+    @Query('plan') plan: string | undefined,
     @Res() res: Response,
   ) {
     if (!shop?.trim()) {
       res.status(400).send('Missing query parameter: shop');
       return;
     }
-    const { confirmationUrl } = await this.billing.createRecurringCharge(shop.trim());
-    res.redirect(302, confirmationUrl);
+    const normalized = this.normalizeShop(shop.trim());
+    const planKey = this.resolvePlanKey(plan);
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    try {
+      // Compare to live Shopify subscription first. After reinstall, DB can be stale (e.g. still
+      // "growth" while Shopify already has Pro). Creating the same plan again makes
+      // appSubscriptionCreate fail and shows "Plan change failed" even though Pro is active.
+      try {
+        const live = await this.billing.getActiveSubscriptionInfo(normalized);
+        if (live && live.planKey === planKey) {
+          await this.shops.setPaidPlan(normalized, this.extractSubscriptionTailId(live.id), planKey, {
+            currentPeriodEndIso: live.currentPeriodEnd?.trim() || undefined,
+          });
+          const homeUrl = baseUrl
+            ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&same_plan=1`
+            : `https://${normalized}/admin`;
+          res.redirect(302, homeUrl);
+          return;
+        }
+      } catch (syncErr) {
+        if (this.needsReconnect(syncErr)) {
+          const reconnectUrl = baseUrl
+            ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+            : `https://${normalized}/admin`;
+          res.redirect(302, reconnectUrl);
+          return;
+        }
+        logBillingError('subscribe (live plan check)', syncErr);
+      }
+
+      const existing = await this.shops.getByDomain(normalized);
+      const samePaidPlan = this.shops.hasPaidPlan(existing)
+        && (existing.plan === planKey || (existing.plan === 'paid' && planKey === 'growth'));
+      if (samePaidPlan) {
+        const homeUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&same_plan=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, homeUrl);
+        return;
+      }
+      const { confirmationUrl } = await this.billing.createRecurringCharge(normalized, planKey);
+      res.redirect(302, confirmationUrl);
+    } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
+      logBillingError('subscribe', err);
+      const appUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&billing_error=1` : `https://${normalized}/admin`;
+      res.redirect(302, appUrl);
+    }
   }
 
   /**
-   * GET /api/billing/return?charge_id=123&shop=example.myshopify.com
-   * Shopify redirects here after the merchant approves the charge (REST or GraphQL). We confirm and mark the shop as paid.
+   * GET /api/billing/return?charge_id=...&shop=...&plan=starter|growth|pro|pro_annual
+   * Shopify redirects here after the merchant approves. We confirm and store the plan.
    */
   @Get('return')
   async return(
     @Query('charge_id') chargeId: string | undefined,
     @Query('subscription_id') subscriptionId: string | undefined,
     @Query('shop') shop: string | undefined,
+    @Query('plan') plan: string | undefined,
     @Res() res: Response,
   ) {
     const id = (chargeId ?? subscriptionId)?.trim();
@@ -66,18 +133,79 @@ export class BillingController {
       res.status(400).send('Missing charge_id (or subscription_id) and shop');
       return;
     }
+    const normalizedShop = this.normalizeShop(shop.trim());
+    const planKey = this.resolvePlanKey(plan);
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
     try {
-      await this.billing.confirmAndActivate(shop.trim(), id);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Activation failed';
-      res.status(400).send(`Billing activation failed: ${message}`);
+      await this.billing.confirmAndActivate(normalizedShop, id, planKey);
+    } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}&reconnect=1`
+          : `https://${normalizedShop}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
+      logBillingError('return (confirmAndActivate)', err);
+      res.status(400).send('Billing activation failed. Please try again or contact support.');
       return;
     }
-    // Redirect back to the app root (Shopify will load the app in admin).
-    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    // Redirect back to the app with thank-you state (Shopify will load the app in admin).
     const redirectTo = baseUrl
-      ? `${baseUrl}/?shop=${encodeURIComponent(shop.trim())}`
-      : `https://${shop.trim()}/admin`;
+      ? `${baseUrl}/?shop=${encodeURIComponent(normalizedShop)}&billing_success=1&plan=${encodeURIComponent(planKey)}`
+      : `https://${normalizedShop}/admin`;
     res.redirect(302, redirectTo);
+  }
+
+  /**
+   * GET /api/billing/cancel?shop=...
+   * Cancels the shop's subscription via Shopify API and redirects back to app home.
+   */
+  @Get('cancel')
+  async cancel(
+    @Query('shop') shop: string | undefined,
+    @Res() res: Response,
+  ) {
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    if (!shop?.trim()) {
+      res.redirect(302, baseUrl ? `${baseUrl}/?billing_cancel_error=1` : '/');
+      return;
+    }
+    const normalized = this.normalizeShop(shop.trim());
+    const homeUrl = baseUrl ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}` : `https://${normalized}/admin`;
+    try {
+      const cancelled = await this.billing.cancelSubscription(normalized);
+      const activeUntilParam = cancelled.currentPeriodEnd ? `&active_until=${encodeURIComponent(cancelled.currentPeriodEnd)}` : '';
+      const cancelledPlanParam = cancelled.planLabel ? `&cancelled_plan=${encodeURIComponent(cancelled.planLabel)}` : '';
+      res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}&cancelled=1${activeUntilParam}${cancelledPlanParam}`);
+    } catch (err) {
+      if (this.needsReconnect(err)) {
+        const reconnectUrl = baseUrl
+          ? `${baseUrl}/?shop=${encodeURIComponent(normalized)}&reconnect=1`
+          : `https://${normalized}/admin`;
+        res.redirect(302, reconnectUrl);
+        return;
+      }
+      logBillingError('cancel', err);
+      res.redirect(302, `${homeUrl}&billing_cancel_error=1`);
+    }
+  }
+
+  private normalizeShop(shop: string): string {
+    const s = shop.toLowerCase().trim().replace(/%2E/g, '.').replace(/^https?:\/\//, '').split('/')[0];
+    return s.includes('.myshopify.com') ? s : `${s}.myshopify.com`;
+  }
+
+  private resolvePlanKey(plan: string | undefined): PlanKey {
+    const key = (plan ?? '').toLowerCase().trim();
+    if (key === 'starter' || key === 'growth' || key === 'pro' || key === 'pro_annual') {
+      return key;
+    }
+    return 'growth';
+  }
+
+  private extractSubscriptionTailId(gid: string): string {
+    const m = String(gid).match(/(\d+)$/);
+    return m ? m[1] : String(gid);
   }
 }

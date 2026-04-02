@@ -1,0 +1,1 @@
+# Keeps this directory so Shopify CLI deploy (theme extension bundle) does not ENOENT on scandir

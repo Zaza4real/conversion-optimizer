@@ -1,0 +1,10 @@
+# Nixpacks config when Railway service Root Directory is apps/backend.
+[phases.install]
+cmds = ["npm ci --ignore-scripts"]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"

@@ -1,0 +1,6 @@
+# Theme app extension. Compatible with Online Store 2.0 themes (JSON templates, app blocks).
+# Vintage themes do not support app blocks. See theme compatibility: docs/THEME_COMPATIBILITY.md
+
+name = "Conversion Optimizer"
+uid = "8bb4bfe2-0f4e-3317-fdb4-10158656e065350b2056"
+type = "theme"

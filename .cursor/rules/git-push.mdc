@@ -1,0 +1,13 @@
+---
+description: After making changes, commit and push to main
+alwaysApply: true
+---
+
+# Git: Commit and push after changes
+
+When you make code or config changes to this project:
+
+1. Stage the relevant files and commit with a clear message.
+2. Push to `origin main`.
+
+Do this every time unless the user explicitly asks not to push or to use a different branch.

@@ -1,8 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shop } from './entities/shop.entity';
 import { EncryptionService } from '../common/encryption.service';
+
+/** Env: comma-separated list of shop domains (e.g. store1.myshopify.com,store2.myshopify.com). Max 10 recommended. */
+const FREE_BETA_SHOPS_KEY = 'FREE_BETA_SHOPS';
 
 @Injectable()
 export class ShopsService {
@@ -10,6 +14,7 @@ export class ShopsService {
     @InjectRepository(Shop)
     private readonly shopRepo: Repository<Shop>,
     private readonly encryption: EncryptionService,
+    private readonly config: ConfigService,
   ) {}
 
   async findByDomain(domain: string): Promise<Shop | null> {
@@ -43,7 +48,7 @@ export class ShopsService {
       domain: normalized,
       accessTokenEnc: encrypted,
       scope: scope ?? null,
-      plan: 'starter',
+      plan: 'free',
       settings: {},
     });
     return this.shopRepo.save(shop);
@@ -61,31 +66,107 @@ export class ShopsService {
     }
   }
 
-  /** Mark shop as paid and store the recurring charge id. */
-  async setPaidPlan(domain: string, recurringChargeId: string): Promise<void> {
+  /** Mark shop as paid and store the recurring charge id and plan tier. */
+  async setPaidPlan(
+    domain: string,
+    recurringChargeId: string,
+    plan: 'starter' | 'growth' | 'pro' | 'pro_annual' = 'growth',
+    options?: { currentPeriodEndIso?: string | null },
+  ): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
-      shop.plan = 'paid';
+      shop.plan = plan;
       shop.recurringChargeId = recurringChargeId;
+      const merged: Record<string, unknown> = {
+        ...(shop.settings ?? {}),
+        billingGraceUntil: null,
+        cancelledPlanLabel: null,
+      };
+      const iso = options?.currentPeriodEndIso != null ? String(options.currentPeriodEndIso).trim() : '';
+      if (iso) {
+        merged['billingPeriodEndIso'] = iso;
+      }
+      shop.settings = merged;
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
   }
 
   /** Clear billing when subscription is cancelled. */
-  async clearBilling(domain: string): Promise<void> {
+  async clearBilling(domain: string, billingGraceUntil?: string | null, cancelledPlanLabel?: string | null): Promise<void> {
     const shop = await this.findByDomain(this.normalizeDomain(domain));
     if (shop) {
-      shop.plan = 'starter';
+      shop.plan = 'free';
       shop.recurringChargeId = null;
+      shop.settings = {
+        ...(shop.settings ?? {}),
+        billingGraceUntil: billingGraceUntil ?? null,
+        cancelledPlanLabel: cancelledPlanLabel ?? null,
+        billingPeriodEndIso: null,
+      };
       shop.updatedAt = new Date();
       await this.shopRepo.save(shop);
     }
   }
 
-  /** True if shop has an active paid subscription. */
+  /** True if shop is on the free beta allowlist (full access, no charge). */
+  isFreeBetaShop(domain: string): boolean {
+    const raw = this.config.get<string>(FREE_BETA_SHOPS_KEY) ?? process.env[FREE_BETA_SHOPS_KEY] ?? '';
+    if (!raw.trim()) return false;
+    const normalized = this.normalizeDomain(domain);
+    const list = raw.split(',').map((d) => this.normalizeDomain(d)).filter(Boolean);
+    return list.includes(normalized);
+  }
+
+  /** True if shop has an active paid subscription (any tier) or is on the free beta allowlist. */
   hasPaidPlan(shop: Shop): boolean {
-    return shop.plan === 'paid' && shop.recurringChargeId != null;
+    if (this.isFreeBetaShop(shop.domain)) return true;
+    const paid = shop.plan === 'starter' || shop.plan === 'growth' || shop.plan === 'pro' || shop.plan === 'pro_annual' || shop.plan === 'paid';
+    if (paid && shop.recurringChargeId != null) return true;
+    const graceUntil = this.getBillingGraceUntil(shop);
+    if (!graceUntil) return false;
+    const graceDate = new Date(graceUntil);
+    return !Number.isNaN(graceDate.getTime()) && graceDate.getTime() > Date.now();
+  }
+
+  /** Current plan label for display (e.g. "Starter", "Growth", "Pro", "Free beta"). */
+  getPlanLabel(shop: Shop): string {
+    if (this.isFreeBetaShop(shop.domain)) return 'Free beta';
+    if (shop.plan === 'free') {
+      const cancelledLabel = this.getCancelledPlanLabel(shop);
+      if (cancelledLabel) return cancelledLabel;
+    }
+    if (shop.plan === 'pro_annual') return 'Pro Annual';
+    if (shop.plan === 'pro') return 'Pro';
+    if (shop.plan === 'growth' || shop.plan === 'paid') return 'Growth';
+    if (shop.plan === 'starter') return 'Starter';
+    return 'Free';
+  }
+
+  getBillingGraceUntil(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['billingGraceUntil'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+  }
+
+  getCancelledPlanLabel(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['cancelledPlanLabel'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+  }
+
+  /** Repair-only: set cancelledPlanLabel in settings without changing plan/grace/token. */
+  async repairCancelledPlanLabel(domain: string, label: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (shop) {
+      shop.settings = { ...(shop.settings ?? {}), cancelledPlanLabel: label };
+      shop.updatedAt = new Date();
+      await this.shopRepo.save(shop);
+    }
+  }
+
+  /** Last known subscription period end from Shopify (persisted when the API returns it). */
+  getBillingPeriodEnd(shop: Shop): string | null {
+    const raw = (shop.settings ?? {})['billingPeriodEndIso'];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
   async findByRecurringChargeId(chargeId: string): Promise<Shop | null> {

@@ -6,10 +6,12 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { Shop } from '../../shops/entities/shop.entity';
 
 @Entity('recommendations')
+@Index('IDX_recommendations_shop_created', ['shopId', 'createdAt'])
 export class Recommendation {
   @PrimaryGeneratedColumn('uuid')
   id: string;

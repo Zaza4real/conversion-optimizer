@@ -1,6 +1,7 @@
 {% comment %}
   Conversion Optimizer: Trust / Guarantee block.
-  Merchant adds this block to product or page template. Settings control copy.
+  Compatible with Online Store 2.0 themes (sections on every page, JSON templates).
+  Merchant adds this block in the theme editor to product or page templates.
 {% endcomment %}
 <div class="co-block co-trust" {{ block.shopify_attributes }}>
   {% if block.settings.heading != blank %}
@@ -16,3 +17,27 @@
   .co-trust__heading { font-size: 1rem; margin: 0 0 0.5rem; font-weight: 600; }
   .co-trust__body { font-size: 0.9rem; opacity: 0.9; }
 </style>
+
+{% schema %}
+{
+  "name": "Trust & Guarantee",
+  "target": "section",
+  "enabled_on": {
+    "templates": ["product", "index"]
+  },
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Our guarantee"
+    },
+    {
+      "type": "textarea",
+      "id": "body",
+      "label": "Body",
+      "default": "30-day returns. Free shipping over $50."
+    }
+  ]
+}
+{% endschema %}
