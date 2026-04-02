@@ -143,6 +143,20 @@ export class ShopsService {
     return 'Free';
   }
 
+  /**
+   * True when the merchant already cancelled in our app / DB: future grace window, or free plan with a stored cancelled label.
+   * Used to skip overwriting those settings from a live Shopify sync and to hide the Cancel control in the UI.
+   */
+  isBillingCancelledPending(shop: Shop): boolean {
+    const until = this.getBillingGraceUntil(shop);
+    if (until?.trim()) {
+      const d = new Date(until);
+      if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now()) return true;
+    }
+    if (shop.plan === 'free' && this.getCancelledPlanLabel(shop)?.trim()) return true;
+    return false;
+  }
+
   getBillingGraceUntil(shop: Shop): string | null {
     const raw = (shop.settings ?? {})['billingGraceUntil'];
     return typeof raw === 'string' && raw.trim() ? raw : null;

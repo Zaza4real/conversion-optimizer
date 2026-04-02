@@ -20,6 +20,7 @@ export declare class ShopsService {
     isFreeBetaShop(domain: string): boolean;
     hasPaidPlan(shop: Shop): boolean;
     getPlanLabel(shop: Shop): string;
+    isBillingCancelledPending(shop: Shop): boolean;
     getBillingGraceUntil(shop: Shop): string | null;
     getCancelledPlanLabel(shop: Shop): string | null;
     repairCancelledPlanLabel(domain: string, label: string): Promise<void>;

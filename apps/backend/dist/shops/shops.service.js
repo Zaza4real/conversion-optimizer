@@ -143,6 +143,17 @@ let ShopsService = class ShopsService {
             return 'Starter';
         return 'Free';
     }
+    isBillingCancelledPending(shop) {
+        const until = this.getBillingGraceUntil(shop);
+        if (until?.trim()) {
+            const d = new Date(until);
+            if (!Number.isNaN(d.getTime()) && d.getTime() > Date.now())
+                return true;
+        }
+        if (shop.plan === 'free' && this.getCancelledPlanLabel(shop)?.trim())
+            return true;
+        return false;
+    }
     getBillingGraceUntil(shop) {
         const raw = (shop.settings ?? {})['billingGraceUntil'];
         return typeof raw === 'string' && raw.trim() ? raw : null;

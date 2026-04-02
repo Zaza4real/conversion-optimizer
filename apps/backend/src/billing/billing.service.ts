@@ -272,11 +272,19 @@ export class BillingService {
   /** When Shopify has no active charge but DB still shows paid access in grace — idempotent cancel success. */
   private tryReturnGraceOnlyCancel(shop: Shop): CancelSubscriptionResult | null {
     const graceUntil = this.shops.getBillingGraceUntil(shop);
-    if (!graceUntil?.trim()) return null;
-    const end = new Date(graceUntil);
-    if (Number.isNaN(end.getTime()) || end.getTime() <= Date.now()) return null;
-    const planLabel = this.shops.getCancelledPlanLabel(shop) ?? this.shops.getPlanLabel(shop);
-    return { currentPeriodEnd: graceUntil.trim(), planLabel };
+    if (graceUntil?.trim()) {
+      const end = new Date(graceUntil);
+      if (!Number.isNaN(end.getTime()) && end.getTime() > Date.now()) {
+        const planLabel = this.shops.getCancelledPlanLabel(shop) ?? this.shops.getPlanLabel(shop);
+        return { currentPeriodEnd: graceUntil.trim(), planLabel };
+      }
+    }
+    if (shop.plan === 'free' && this.shops.getCancelledPlanLabel(shop)?.trim()) {
+      const planLabel = this.shops.getCancelledPlanLabel(shop)!.trim();
+      const periodEnd = this.shops.getBillingPeriodEnd(shop);
+      return { currentPeriodEnd: periodEnd, planLabel };
+    }
+    return null;
   }
 
   private async fetchAppSubscriptionStatusByGid(

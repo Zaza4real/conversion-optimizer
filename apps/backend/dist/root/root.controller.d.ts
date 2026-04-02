@@ -15,7 +15,7 @@ export declare class RootController {
     billingRepair(req: Request, res: Response): Promise<void>;
     landing(req: Request, res: Response): void;
     scanRunPage(req: Request, res: Response): void;
-    billingCancelConfirm(req: Request, res: Response): void;
+    billingCancelConfirm(req: Request, res: Response): Promise<void>;
     billingConfirm(req: Request, res: Response): void;
     recommendationsPage(req: Request, res: Response): void;
     index(req: Request, res: Response): Promise<void>;

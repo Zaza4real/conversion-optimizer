@@ -39,7 +39,7 @@ let RootController = RootController_1 = class RootController {
         res.status(200).send(JSON.stringify({
             status: 'ok',
             app: 'Conversion Optimizer',
-            buildMarker: 'BUILD_MARKER_2026-04-02_INSTALL_WELCOME_v1',
+            buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v1',
         }));
     }
     privacy(req, res) {
@@ -110,7 +110,7 @@ let RootController = RootController_1 = class RootController {
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(this.getScanRunPageHtml(normalized, apiUrl, homeUrl, recsUrl));
     }
-    billingCancelConfirm(req, res) {
+    async billingCancelConfirm(req, res) {
         const shop = req.query.shop?.trim();
         if (!shop) {
             res.status(400).send('Missing shop');
@@ -120,6 +120,11 @@ let RootController = RootController_1 = class RootController {
         const normalized = this.normalizeShop(shop);
         const shopEnc = encodeURIComponent(normalized);
         const homeUrl = `${baseUrl}/?shop=${shopEnc}`;
+        const existing = await this.shops.findByDomain(normalized);
+        if (existing && this.shops.isBillingCancelledPending(existing)) {
+            res.redirect(302, homeUrl);
+            return;
+        }
         const cancelUrl = `${baseUrl}/api/billing/cancel?shop=${shopEnc}`;
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -214,8 +219,7 @@ let RootController = RootController_1 = class RootController {
         let currentPlanLabel = this.shops.getPlanLabel(existing);
         let currentPlanKey = this.planKeyFromLabel(currentPlanLabel);
         let activeUntilIso = req.query.active_until?.trim() || '';
-        const cancelGraceActive = existing.plan === 'free' &&
-            Boolean(this.shops.getBillingGraceUntil(existing) || this.shops.getCancelledPlanLabel(existing));
+        const billingCancelledPending = this.shops.isBillingCancelledPending(existing);
         try {
             const activeInfo = await this.billing.getActiveSubscriptionInfo(normalized);
             if (activeInfo) {
@@ -224,7 +228,7 @@ let RootController = RootController_1 = class RootController {
                 if (!activeInfo.currentPeriodEnd) {
                     console.warn('[Root] Active subscription has no currentPeriodEnd from API; shop=', normalized);
                 }
-                if (!cancelGraceActive) {
+                if (!billingCancelledPending) {
                     currentPlanLabel = activeInfo.planLabel;
                     currentPlanKey = activeInfo.planKey;
                     await this.shops.setPaidPlan(normalized, String(this.extractTailId(activeInfo.id)), activeInfo.planKey, {
@@ -250,7 +254,11 @@ let RootController = RootController_1 = class RootController {
         const billingSuccess = String(req.query.billing_success) === '1';
         const planJustPurchased = req.query.plan?.trim() || '';
         const cancelled = String(req.query.cancelled) === '1';
-        const billingCancelError = String(req.query.billing_cancel_error) === '1';
+        let billingCancelError = String(req.query.billing_cancel_error) === '1';
+        if (billingCancelError && billingCancelledPending) {
+            res.redirect(302, `${baseUrl}/?shop=${encodeURIComponent(normalized)}`);
+            return;
+        }
         const samePlan = String(req.query.same_plan) === '1';
         const welcomeFresh = String(req.query.welcome) === '1';
         const welcomeBack = String(req.query.welcome_back) === '1';
@@ -281,14 +289,14 @@ let RootController = RootController_1 = class RootController {
                 currentPlanKey,
                 cancelledPlanFromState,
                 activeUntilIso,
-                cancelGraceActive,
+                billingCancelledPending,
                 gridPlanKeyWouldBe: this.planKeyFromLabel(cancelledPlanFromState || currentPlanLabel),
             };
             res.setHeader('Content-Type', 'application/json');
             res.send(JSON.stringify(debugPayload, null, 2));
             return;
         }
-        res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanFromState, welcomeFresh, welcomeBack));
+        res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanFromState, welcomeFresh, welcomeBack, billingCancelledPending));
     }
     farewell(res) {
         const baseUrl = this.config.get('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
@@ -314,7 +322,7 @@ let RootController = RootController_1 = class RootController {
     getDismissAppBridgeLoadingScript() {
         return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
     }
-    getAppHomeHtml(shop, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError = false, appStoreListingUrl, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = '', cancelledPlanLabel = '', welcomeFresh = false, welcomeBack = false) {
+    getAppHomeHtml(shop, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError = false, appStoreListingUrl, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = '', cancelledPlanLabel = '', welcomeFresh = false, welcomeBack = false, billingCancelledPending = false) {
         const title = 'Conversion Optimizer';
         const shopSafe = this.escapeHtml(shop);
         const shopEnc = encodeURIComponent(shop);
@@ -357,7 +365,9 @@ let RootController = RootController_1 = class RootController {
         const periodPlanLabel = cancelledPlanLabel || currentPlanLabel;
         const gridPlanKey = isFreeBeta ? '' : this.planKeyFromLabel(periodPlanLabel);
         const activeUntilBanner = activeUntilIso
-            ? `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
+            ? billingCancelledPending
+                ? `<div class="banner banner-neutral"><p class="banner-title">Subscription cancelled</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan is cancelled (no further charges for this subscription). You keep full app access until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can subscribe to a plan again anytime below.</p></div>`
+                : `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
             : '';
         const periodEndFallbackBanner = hasPlan && !activeUntilIso && !isFreeBeta
             ? `<div class="banner banner-neutral"><p class="banner-title">Active plan</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription is active. To see the exact renewal date, open <strong>Settings → Plan and permissions</strong> in Shopify Admin and choose <strong>Billing</strong>.</p></div>`
@@ -365,7 +375,7 @@ let RootController = RootController_1 = class RootController {
         const billingCard = hasAccess
             ? isFreeBeta
                 ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
-                : `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p><p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`
+                : `<div class="card billing-card"><p class="card-title">Billing${billingCancelledPending ? ' <span class="status-pill status-pill-cancelled">Cancelled</span>' : ''}</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p>${billingCancelledPending ? `<p class="card-text billing-cancelled-note">This subscription is cancelled. There will be no further charges for it. You can manage Shopify billing or choose a new plan using the actions below.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><span class="btn btn-outline btn-disabled" tabindex="-1" aria-disabled="true">Cancel subscription</span></div></div>` : `<p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`}`
             : '';
         const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid"><!-- BILLING_BADGE_FIX_ENABLED_v3 -->${plansDisplay.map((p) => {
             const isCurrent = hasPlan && gridPlanKey !== '' && p.key === gridPlanKey;
@@ -458,6 +468,10 @@ let RootController = RootController_1 = class RootController {
     .action-item:last-child{border-bottom:none;padding-bottom:0}
     .action-desc{font-size:13px;color:#6d7175;flex:1;min-width:160px}
     .billing-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+    .status-pill{display:inline-flex;align-items:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:6px}
+    .status-pill-cancelled{color:#92400e;background:#fef3c7;border:1px solid #fcd34d}
+    .btn-disabled{opacity:.58;cursor:not-allowed;pointer-events:none;color:#6d7175;background:#f6f6f7}
+    .billing-cancelled-note{font-size:13px;color:#57595c}
     .app-footer{margin-top:28px;padding-top:16px;border-top:1px solid #e1e3e5;font-size:12px;color:#8c9196;display:flex;flex-wrap:wrap;gap:14px}
     .app-footer a{color:#008060;text-decoration:none;font-weight:500}
     .app-footer a:hover{text-decoration:underline}
@@ -1326,7 +1340,7 @@ __decorate([
     __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], RootController.prototype, "billingCancelConfirm", null);
 __decorate([
     (0, common_1.Get)('billing/confirm'),
