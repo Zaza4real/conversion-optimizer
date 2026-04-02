@@ -209,12 +209,13 @@ export class RootController {
 
     let hasPlan = this.shops.hasPaidPlan(existing);
     let currentPlanLabel = this.shops.getPlanLabel(existing);
-    let currentPlanKey =
-      existing.plan === 'pro_annual' ? 'pro_annual' : existing.plan === 'pro' ? 'pro' : existing.plan === 'starter' ? 'starter' : 'growth';
+    let currentPlanKey = this.planKeyFromLabel(currentPlanLabel);
+    let syncedFromActiveInfo = false;
     let activeUntilIso = (req.query.active_until as string)?.trim() || '';
     try {
       const activeInfo = await this.billing.getActiveSubscriptionInfo(normalized);
       if (activeInfo) {
+        syncedFromActiveInfo = true;
         hasPlan = true;
         currentPlanLabel = activeInfo.planLabel;
         currentPlanKey = activeInfo.planKey;
@@ -247,6 +248,10 @@ export class RootController {
       activeUntilIso = this.shops.getBillingPeriodEnd(existing) ?? '';
     }
     const cancelledPlanFromState = cancelledPlanLabel || this.shops.getCancelledPlanLabel(existing) || '';
+    if (cancelledPlanFromState && !syncedFromActiveInfo) {
+      currentPlanLabel = cancelledPlanFromState;
+      currentPlanKey = this.planKeyFromLabel(cancelledPlanFromState);
+    }
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     const appStoreListingUrl = this.config.get<string>('APP_STORE_LISTING_URL');
@@ -454,6 +459,16 @@ export class RootController {
   private extractTailId(gid: string): string {
     const m = String(gid).match(/(\d+)$/);
     return m ? m[1] : String(gid);
+  }
+
+  private planKeyFromLabel(label: string): string {
+    const value = String(label ?? '').toLowerCase();
+    if (value.includes('pro annual') || (value.includes('pro') && value.includes('annual')) || value.includes('/year')) {
+      return 'pro_annual';
+    }
+    if (value.includes('pro')) return 'pro';
+    if (value.includes('starter')) return 'starter';
+    return 'growth';
   }
 
   private formatDate(isoLike: string): string {
