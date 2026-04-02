@@ -19,6 +19,7 @@ export declare class RootController {
     billingConfirm(req: Request, res: Response): void;
     recommendationsPage(req: Request, res: Response): void;
     index(req: Request, res: Response): Promise<void>;
+    farewell(res: Response): void;
     private escapeHtml;
     private getAppBridgeHead;
     private getDismissAppBridgeLoadingScript;
@@ -39,6 +40,7 @@ export declare class RootController {
     private getPrivacyContent;
     private getRefundContent;
     private getSupportPageHtml;
+    private getFarewellPageHtml;
     private getLandingPageHtml;
     private getBaseUrl;
     private normalizeShop;

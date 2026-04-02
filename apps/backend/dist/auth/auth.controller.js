@@ -162,13 +162,17 @@ let AuthController = class AuthController {
             res.status(400).send('Invalid or expired state');
             return;
         }
+        const prior = await this.shops.findByDomain(shopNorm);
+        const reinstallAfterUninstall = prior != null && prior.uninstalledAt != null;
+        const firstInstall = prior == null;
         const { access_token, scope } = await this.auth.exchangeCode(shopNorm, code);
         await this.auth.saveShopAndToken(shopNorm, access_token, scope);
-        const apiKey = this.config.get('SHOPIFY_API_KEY') ?? '';
-        const redirectToApp = apiKey
-            ? `https://${shopNorm}/admin/apps/${apiKey}`
-            : `${this.config.get('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? ''}/?shop=${encodeURIComponent(shopNorm)}`;
-        res.redirect(redirectToApp);
+        const qs = new URLSearchParams({ shop: shopNorm });
+        if (reinstallAfterUninstall)
+            qs.set('welcome_back', '1');
+        else if (firstInstall)
+            qs.set('welcome', '1');
+        res.redirect(302, `${appUrl}/?${qs.toString()}`);
     }
     normalizeShop(shop) {
         const s = shop.toLowerCase().trim().replace(/^https?:\/\//, '').split('/')[0];

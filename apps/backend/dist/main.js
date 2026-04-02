@@ -8,7 +8,7 @@ const express = require("express");
 const compression = require("compression");
 const http_exception_filter_1 = require("./common/filters/http-exception.filter");
 async function bootstrap() {
-    console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02_CANCEL_FIX_v3');
+    console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02_INSTALL_WELCOME_v1');
     const app = await core_1.NestFactory.create(app_module_1.AppModule, {
         rawBody: true,
     });
@@ -45,6 +45,7 @@ async function bootstrap() {
             { path: 'billing/cancel-confirm', method: common_1.RequestMethod.GET },
             { path: 'health', method: common_1.RequestMethod.GET },
             { path: 'health/billing-repair', method: common_1.RequestMethod.GET },
+            { path: 'farewell', method: common_1.RequestMethod.GET },
         ],
     });
     const port = process.env.PORT || 4000;

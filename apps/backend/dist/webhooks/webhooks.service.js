@@ -52,6 +52,7 @@ let WebhooksService = class WebhooksService {
         switch (topic) {
             case 'app_uninstalled':
                 await this.shops.markUninstalled(shopDomain);
+                console.log(`[Webhooks] app_uninstalled ${shopDomain} — merchant will not see an in-app goodbye (Shopify does not load embedded apps during uninstall). Farewell page: /farewell`);
                 break;
             case 'app_subscriptions_update':
             case 'app_subscriptions_delete':

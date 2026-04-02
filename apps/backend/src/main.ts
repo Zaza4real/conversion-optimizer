@@ -10,7 +10,7 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   // Visible in Railway instance logs to confirm we deployed the latest code.
-  console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02_CANCEL_FIX_v3');
+  console.log('[BuildMarker] backend-start BUILD_MARKER_2026-04-02_INSTALL_WELCOME_v1');
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     rawBody: true, // keep raw body for webhook HMAC
@@ -59,6 +59,7 @@ async function bootstrap() {
       { path: 'billing/cancel-confirm', method: RequestMethod.GET },
       { path: 'health', method: RequestMethod.GET },
       { path: 'health/billing-repair', method: RequestMethod.GET },
+      { path: 'farewell', method: RequestMethod.GET },
     ],
   });
 

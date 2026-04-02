@@ -38,7 +38,7 @@ export class RootController {
       JSON.stringify({
         status: 'ok',
         app: 'Conversion Optimizer',
-        buildMarker: 'BUILD_MARKER_2026-04-02_CANCEL_FIX_v3',
+        buildMarker: 'BUILD_MARKER_2026-04-02_INSTALL_WELCOME_v1',
       }),
     );
   }
@@ -298,6 +298,8 @@ export class RootController {
     const cancelled = String(req.query.cancelled) === '1';
     const billingCancelError = String(req.query.billing_cancel_error) === '1';
     const samePlan = String(req.query.same_plan) === '1';
+    const welcomeFresh = String(req.query.welcome) === '1';
+    const welcomeBack = String(req.query.welcome_back) === '1';
     const cancelledPlanLabel = (req.query.cancelled_plan as string)?.trim() || '';
     if (!activeUntilIso) {
       activeUntilIso = this.shops.getBillingGraceUntil(existing) ?? '';
@@ -335,7 +337,40 @@ export class RootController {
       return;
     }
 
-    res.send(this.getAppHomeHtml(normalized, hasPlan, currentPlanLabel, currentPlanKey, baseUrl, billingError, appStoreListingUrl, billingSuccess, planJustPurchased, cancelled, billingCancelError, isFreeBeta, samePlan, activeUntilIso, cancelledPlanFromState));
+    res.send(
+      this.getAppHomeHtml(
+        normalized,
+        hasPlan,
+        currentPlanLabel,
+        currentPlanKey,
+        baseUrl,
+        billingError,
+        appStoreListingUrl,
+        billingSuccess,
+        planJustPurchased,
+        cancelled,
+        billingCancelError,
+        isFreeBeta,
+        samePlan,
+        activeUntilIso,
+        cancelledPlanFromState,
+        welcomeFresh,
+        welcomeBack,
+      ),
+    );
+  }
+
+  /**
+   * GET /farewell — shown if the merchant opens this URL (e.g. from docs). Shopify does not load
+   * embedded apps during uninstall, so there is no in-admin “goodbye” screen at uninstall time.
+   */
+  @Get('farewell')
+  farewell(@Res() res: Response) {
+    const baseUrl = this.config.get<string>('SHOPIFY_APP_URL')?.replace(/\/$/, '') ?? '';
+    const supportUrl = baseUrl ? `${baseUrl}/support` : '#';
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(this.getFarewellPageHtml(supportUrl));
   }
 
   private escapeHtml(s: string): string {
@@ -359,7 +394,25 @@ export class RootController {
     return `<script>(function(){function d(){try{if(typeof shopify!="undefined"&&shopify.loading)shopify.loading(false);}catch(e){}}if(document.readyState==="complete"){d();setTimeout(d,150);}else{window.addEventListener("load",function(){d();setTimeout(d,150);});}})();</script>`;
   }
 
-  private getAppHomeHtml(shop: string, hasPlan: boolean, currentPlanLabel: string, currentPlanKey: string, baseUrl: string, billingError = false, appStoreListingUrl?: string, billingSuccess = false, planJustPurchased = '', cancelled = false, billingCancelError = false, isFreeBeta = false, samePlan = false, activeUntilIso = '', cancelledPlanLabel = ''): string {
+  private getAppHomeHtml(
+    shop: string,
+    hasPlan: boolean,
+    currentPlanLabel: string,
+    currentPlanKey: string,
+    baseUrl: string,
+    billingError = false,
+    appStoreListingUrl?: string,
+    billingSuccess = false,
+    planJustPurchased = '',
+    cancelled = false,
+    billingCancelError = false,
+    isFreeBeta = false,
+    samePlan = false,
+    activeUntilIso = '',
+    cancelledPlanLabel = '',
+    welcomeFresh = false,
+    welcomeBack = false,
+  ): string {
     const title = 'Conversion Optimizer';
     const shopSafe = this.escapeHtml(shop);
     const shopEnc = encodeURIComponent(shop);
@@ -376,6 +429,12 @@ export class RootController {
       { key: 'pro_annual', name: 'Pro Annual', price: 290, period: '/year', desc: 'Annual Pro billing for teams. Same Pro features with a lower effective monthly cost.' },
     ];
 
+    const welcomeFreshBanner = welcomeFresh
+      ? `<div class="banner banner-success"><p class="banner-title">You're in -- welcome to Conversion Optimizer</p><p class="banner-body">Thanks for installing the app. Choose a plan below to unlock full store scans and recommendations, or scroll down to see what you get first.</p></div>`
+      : '';
+    const welcomeBackBanner = welcomeBack
+      ? `<div class="banner banner-info"><p class="banner-title">Welcome back</p><p class="banner-body">We're glad you installed Conversion Optimizer again. Heads-up: Shopify doesn't show third-party apps in the flow when you uninstall, so you wouldn't have seen an in-app goodbye then. We still appreciate you coming back. Your data and plan status below reflect your store as of now.</p></div>`
+      : '';
     const billingSuccessBanner = billingSuccess
       ? this.getThankYouBanner(planJustPurchased)
       : '';
@@ -516,6 +575,8 @@ export class RootController {
       <div class="brand"><img src="/logo.svg" alt="" class="app-logo-icon"><span class="app-wordmark">${title}</span></div>
       <span class="shop-badge">${shopSafe}</span>
     </header>
+    ${welcomeFreshBanner}
+    ${welcomeBackBanner}
     ${billingSuccessBanner}
     ${cancelledBanner}
     ${billingCancelErrorBanner}
@@ -1182,8 +1243,41 @@ export class RootController {
       ${contactBlock}
       <h2>Common topics</h2>
       <p><strong>Billing or plan:</strong> Cancel or change your plan from Shopify Admin → Settings → Billing. For refunds, see our <a href="${baseUrl}/refund">Refund policy</a>.</p>
+      <p><strong>Uninstalling:</strong> Shopify does not show our app while you remove it. If you want a short goodbye message or reinstall tips, see <a href="${baseUrl}/farewell">this note</a>.</p>
       <p><strong>Privacy or data:</strong> See our <a href="${baseUrl}/privacy">Privacy policy</a>.</p>
     </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  /** Optional page if someone opens the link directly (Shopify does not embed apps during uninstall). */
+  private getFarewellPageHtml(supportUrl: string): string {
+    const support = this.escapeHtml(supportUrl);
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sorry to see you go — Conversion Optimizer</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.65;color:#334155;background:#f6f6f7;min-height:100vh;padding:40px 20px}
+    .card{max-width:560px;margin:0 auto;background:#fff;border:1px solid #e1e3e5;border-radius:12px;padding:28px 26px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    h1{font-size:20px;font-weight:700;color:#202223;margin:0 0 12px;letter-spacing:-0.02em}
+    p{margin:0 0 14px}
+    .note{font-size:13px;color:#6d7175;border-left:3px solid #008060;padding:10px 14px;background:#f0fdf9;margin:18px 0 0;border-radius:0 8px 8px 0}
+    a{color:#008060;font-weight:600;text-decoration:none}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sorry to see you go</h1>
+    <p>Thanks for trying Conversion Optimizer. If you change your mind, you can install the app again anytime from the Shopify App Store.</p>
+    <p>We're sorry we couldn't show this message automatically right when you uninstalled. Shopify doesn't load third-party app pages during that step.</p>
+    <p>Questions or feedback? <a href="${support}">Visit support</a>.</p>
+    <p class="note">If you’re seeing this after reinstalling, head back to the app from <strong>Apps</strong> in your Shopify admin — you’ll get a fresh welcome message there.</p>
   </div>
 </body>
 </html>`;
