@@ -1,13 +1,10 @@
-# Railway config when the service Root Directory is **apps/backend** (lockfile + npm ci here).
-# If the Root Directory is the **monorepo root**, use /railway.toml and /nixpacks.toml instead.
+# Railway config when the service Root Directory is apps/backend.
+# Uses Nixpacks (not Dockerfile) to avoid build-context / cache issues.
 
 [build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
+builder = "nixpacks"
 
 [deploy]
 startCommand = "node dist/main.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-# Run DB migration (recommendations index) before each deploy. Uses DATABASE_URL from Railway.
-preDeployCommand = "node run-recommendations-index-migration.js"

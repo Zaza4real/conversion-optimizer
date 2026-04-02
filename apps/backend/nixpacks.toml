@@ -1,7 +1,5 @@
 # Nixpacks config when Railway service Root Directory is apps/backend.
-# Build phase removed: committed dist/ artefacts are used directly.
+# No build phase: committed dist/ artefacts are used directly.
+# startCommand in railway.toml runs: node dist/main.js (fast, <1s startup).
 [phases.install]
 cmds = ["npm ci --ignore-scripts"]
-
-[start]
-cmd = "node dist/main.js"
