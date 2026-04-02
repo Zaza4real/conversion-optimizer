@@ -183,18 +183,83 @@ export class BillingService {
     const accessToken = this.shops.getAccessToken(shop);
 
     const subscriptionId = this.parseSubscriptionId(chargeId);
-    const activeSubscriptions = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
-    const matchedSub = activeSubscriptions.find(
-      (s) => this.parseSubscriptionId(s.id) === subscriptionId || s.id === chargeId,
-    );
-    if (matchedSub) {
-      await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey, {
-        currentPeriodEndIso: matchedSub.currentPeriodEnd ?? undefined,
-      });
-      return;
+    const gid = `gid://shopify/AppSubscription/${subscriptionId}`;
+
+    // Query the specific subscription by GID — more reliable than searching activeSubscriptions
+    // which can miss a newly confirmed charge due to Shopify's eventual consistency.
+    const nodeQuery = `query GetSubscription($id: ID!) {
+  node(id: $id) {
+    ... on AppSubscription {
+      id
+      name
+      status
+      currentPeriodEnd
+      lineItems {
+        plan {
+          pricingDetails {
+            __typename
+            ... on AppRecurringPricing {
+              interval
+              price { amount currencyCode }
+            }
+          }
+        }
+      }
     }
-    console.error('[Billing] Subscription not found or not active', chargeId);
-    throw new BadRequestException('Subscription could not be activated. Please try again or contact support.');
+  }
+}`;
+    const url = `https://${normalized}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
+    const nodeRes = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+      body: JSON.stringify({ query: nodeQuery, variables: { id: gid } }),
+    });
+    if (nodeRes.status === 401) this.throwReconnectRequired('confirmAndActivate');
+    if (!nodeRes.ok) {
+      const text = await nodeRes.text();
+      console.error('[Billing] confirmAndActivate node query failed', nodeRes.status, text);
+      throw new BadRequestException('Unable to verify subscription. Please try again.');
+    }
+    const nodeData = (await nodeRes.json()) as {
+      data?: { node?: { id?: string; name?: string; status?: string; currentPeriodEnd?: string; lineItems?: { plan?: { pricingDetails?: { __typename?: string; interval?: string; price?: { amount?: string } } } }[] } };
+      errors?: { message?: string }[];
+    };
+    if (nodeData.errors?.length) {
+      console.error('[Billing] confirmAndActivate GraphQL errors', nodeData.errors);
+      throw new BadRequestException('Unable to verify subscription. Please try again.');
+    }
+    const sub = nodeData.data?.node;
+    const status = String(sub?.status ?? '').toUpperCase();
+    if (!sub || !['ACTIVE', 'PENDING'].includes(status)) {
+      // Fall back to scanning activeSubscriptions (covers edge cases)
+      const active = await this.getActiveSubscriptionSnapshots(normalized, accessToken);
+      const fallback = active.find((s) => this.parseSubscriptionId(s.id) === subscriptionId);
+      if (fallback) {
+        await this.shops.setPaidPlan(normalized, String(subscriptionId), planKey, {
+          currentPeriodEndIso: fallback.currentPeriodEnd ?? undefined,
+        });
+        return;
+      }
+      console.error('[Billing] Subscription not found or not active', chargeId, 'status:', status);
+      throw new BadRequestException('Subscription could not be activated. Please try again or contact support.');
+    }
+    // Resolve plan from snapshot for more reliable plan key (price/interval beats URL param)
+    const snapshot: ActiveSubscriptionSnapshot = {
+      id: sub.id ?? gid,
+      name: sub.name ?? null,
+      status: sub.status ?? null,
+      createdAt: null,
+      currentPeriodEnd: sub.currentPeriodEnd ?? null,
+      interval: (sub.lineItems?.[0]?.plan?.pricingDetails as { interval?: string })?.interval ?? null,
+      amount: sub.lineItems?.[0]?.plan?.pricingDetails?.price?.amount != null
+        ? Number(sub.lineItems[0].plan!.pricingDetails!.price!.amount)
+        : null,
+    };
+    const resolved = this.resolvePlanFromSnapshot(snapshot);
+    const finalPlanKey = resolved.planKey !== 'growth' ? resolved.planKey : planKey;
+    await this.shops.setPaidPlan(normalized, String(subscriptionId), finalPlanKey, {
+      currentPeriodEndIso: sub.currentPeriodEnd ?? undefined,
+    });
   }
 
   private parseSubscriptionId(idOrGid: string): number {
