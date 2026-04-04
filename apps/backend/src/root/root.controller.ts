@@ -38,7 +38,7 @@ export class RootController {
       JSON.stringify({
         status: 'ok',
         app: 'Conversion Optimizer',
-        buildMarker: 'BUILD_MARKER_2026-04-02_CANCELLED_UI_v2',
+        buildMarker: 'BUILD_MARKER_2026-04-02_POLISH_v1',
       }),
     );
   }
@@ -456,9 +456,11 @@ export class RootController {
     const billingSuccessBanner = billingSuccess
       ? this.getThankYouBanner(planJustPurchased)
       : '';
-    const cancelledBanner = cancelled
-      ? '<div class="banner banner-success"><p class="banner-title">Subscription cancelled</p><p class="banner-body">You\'ll keep full access until the end of your current billing period.</p></div>'
-      : '';
+    // Avoid stacking three similar messages (URL flash + neutral banner + billing card).
+    const cancelledBanner =
+      cancelled && !billingCancelledPending
+        ? '<div class="banner banner-success"><p class="banner-title">Subscription cancelled</p><p class="banner-body">You\'ll keep full access until the end of your current billing period.</p></div>'
+        : '';
     const billingCancelErrorBanner = billingCancelError
       ? '<div class="banner banner-error"><p class="banner-title">Cancellation failed</p><p class="banner-body">We couldn\'t cancel your subscription. Please try again or contact support.</p></div>'
       : '';
@@ -477,7 +479,7 @@ export class RootController {
     const gridPlanKey = isFreeBeta ? '' : this.planKeyFromLabel(periodPlanLabel);
     const activeUntilBanner = activeUntilIso
       ? billingCancelledPending
-        ? `<div class="banner banner-neutral"><p class="banner-title">Subscription cancelled</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan is cancelled (no further charges for this subscription). You keep full app access until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can subscribe to a plan again anytime below.</p></div>`
+        ? `<div class="banner banner-neutral"><p class="banner-title">Subscription status</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription is cancelled: there will be no further charges for this plan. You retain full app access through <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You may choose a new plan below at any time.</p></div>`
         : `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
       : '';
     const periodEndFallbackBanner =
@@ -487,9 +489,12 @@ export class RootController {
     const billingCard = hasAccess
       ? isFreeBeta
         ? `<div class="card"><p class="card-title">Billing</p><p class="card-text">Your plan: <strong>${this.escapeHtml(currentPlanLabel)}</strong>. Full access for testers — no payment required.</p></div>`
-        : `<div class="card billing-card"><p class="card-title">Billing${billingCancelledPending ? ' <span class="status-pill status-pill-cancelled">Cancelled</span>' : ''}</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p>${billingCancelledPending ? `<p class="card-text billing-cancelled-note">This subscription is cancelled. There will be no further charges for it. You can manage Shopify billing or choose a new plan using the actions below.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><span class="btn btn-outline btn-disabled" tabindex="-1" aria-disabled="true">Cancel subscription</span></div></div>` : `<p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`}`
+        : `<div class="card billing-card"><p class="card-title">Billing${billingCancelledPending ? ' <span class="status-pill status-pill-cancelled">Cancelled</span>' : ''}</p><p class="card-text">Your plan: <strong>${this.escapeHtml(periodPlanLabel)}</strong>. You have full access to all scans and recommendations.</p>${billingCancelledPending ? `<p class="card-text billing-cancelled-note">Use <strong>Manage billing</strong> for charges in Shopify, or pick a new plan in the section below.</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a><span class="btn btn-outline btn-disabled" tabindex="-1" aria-disabled="true">Subscription cancelled</span></div></div>` : `<p class="card-text">${cancelled ? 'This subscription is cancelled and will remain active until period end.' : "Cancel anytime — you'll keep access until the end of your billing period."}</p><div class="billing-actions"><a href="${subscribeBase}" target="_top" class="btn btn-outline">Manage billing</a>${cancelled ? '' : `<a href="${this.escapeHtml(cancelConfirmUrl)}" target="_top" class="btn btn-outline">Cancel subscription</a>`}</div></div>`}`
       : '';
-    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.</p><div class="plans-grid"><!-- BILLING_BADGE_FIX_ENABLED_v3 -->${plansDisplay.map((p) => {
+    const plansCardIntro = billingCancelledPending
+      ? 'Select a plan when you are ready. You can also manage charges in Shopify Admin under Settings → Billing.'
+      : `${hasPlan ? 'Change plan or manage billing below. ' : ''}Cancel anytime from the app or your Shopify billing.`;
+    const plansCard = `<div class="card"><p class="card-title">Plans</p><p class="card-text">${plansCardIntro}</p><div class="plans-grid"><!-- BILLING_BADGE_FIX_ENABLED_v3 -->${plansDisplay.map((p) => {
       const isCurrent = hasPlan && gridPlanKey !== '' && p.key === gridPlanKey;
       return `<div class="plan-card${p.popular ? ' plan-popular' : ''}${isCurrent ? ' plan-card-current' : ''}"><div class="plan-head"><p class="plan-name">${p.name}</p>${isCurrent ? '<span class="plan-current-badge">Current</span>' : p.popular ? '<span class="plan-popular-badge">Popular</span>' : '<span></span>'}</div><div class="plan-price">$${p.price}<span class="plan-period">${p.period ?? '/mo'}</span></div><p class="plan-desc">${p.desc}</p><div class="plan-btn-wrap">${isCurrent ? '<span class="btn-plan btn-plan-disabled">Current plan</span>' : `<a href="${confirmBase}&plan=${p.key}" target="_top" class="btn-plan">${hasPlan ? 'Switch plan' : 'Select plan'}</a>`}</div></div>`;
     }).join('')}</div><p class="pricing-disclosure">Pricing details: Growth $19 monthly, Pro $29 monthly, Pro Annual $290 yearly. No free trial at this time.</p></div>`;
