@@ -409,6 +409,8 @@ export class BillingService {
 
   /**
    * Returns active subscription info for home/banner sync (useful after reinstall with persisting plan).
+   * When `activeSubscriptions` omits `currentPeriodEnd`, loads it via `node(id:)` (required for App Store
+   * 1.2.2 — expiry banner after reinstall).
    */
   async getActiveSubscriptionInfo(shopDomain: string): Promise<ActiveSubscriptionInfo | null> {
     const normalized = this.normalizeDomain(shopDomain);
@@ -418,13 +420,64 @@ export class BillingService {
     if (!active.length) return null;
     const target = this.pickPreferredActiveSubscription(active, shop.recurringChargeId ?? undefined);
     const resolved = this.resolvePlanFromSnapshot(target);
+    let currentPeriodEnd = target.currentPeriodEnd?.trim() || null;
+    if (!currentPeriodEnd && target.id) {
+      currentPeriodEnd = await this.fetchCurrentPeriodEndBySubscriptionGid(normalized, accessToken, target.id);
+    }
     return {
       id: target.id,
       planKey: resolved.planKey,
       planLabel: resolved.planLabel,
       status: String(target.status ?? ''),
-      currentPeriodEnd: target.currentPeriodEnd ?? null,
+      currentPeriodEnd,
     };
+  }
+
+  /**
+   * Fetches currentPeriodEnd for the shop's stored recurring charge id (e.g. after reinstall when
+   * list sync failed or returned no rows but DB still has the charge id).
+   */
+  async fetchBillingPeriodEndForShop(shopDomain: string): Promise<string | null> {
+    const normalized = this.normalizeDomain(shopDomain);
+    const shop = await this.shops.getByDomain(normalized);
+    const rid = shop.recurringChargeId?.trim();
+    if (!rid) return null;
+    const accessToken = this.shops.getAccessToken(shop);
+    const gid = this.toAppSubscriptionGid(rid);
+    return this.fetchCurrentPeriodEndBySubscriptionGid(normalized, accessToken, gid);
+  }
+
+  private toAppSubscriptionGid(idOrGid: string): string {
+    const s = String(idOrGid).trim();
+    if (s.startsWith('gid://shopify/AppSubscription/')) return s;
+    const n = this.parseSubscriptionId(s);
+    return n ? `gid://shopify/AppSubscription/${n}` : `gid://shopify/AppSubscription/${s.replace(/\D/g, '')}`;
+  }
+
+  private async fetchCurrentPeriodEndBySubscriptionGid(
+    shopDomain: string,
+    accessToken: string,
+    subscriptionGid: string,
+  ): Promise<string | null> {
+    const query = `query SubPeriod($id: ID!) { node(id: $id) { ... on AppSubscription { currentPeriodEnd } } }`;
+    const url = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': accessToken },
+      body: JSON.stringify({ query, variables: { id: subscriptionGid } }),
+    });
+    if (res.status === 401) this.throwReconnectRequired('fetchCurrentPeriodEndBySubscriptionGid');
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      data?: { node?: { currentPeriodEnd?: string } | null };
+      errors?: { message?: string }[];
+    };
+    if (data.errors?.length) {
+      console.warn('[Billing] fetchCurrentPeriodEnd GraphQL errors', data.errors);
+      return null;
+    }
+    const end = data.data?.node?.currentPeriodEnd;
+    return end?.trim() ? end.trim() : null;
   }
 
   private async getActiveSubscriptionSnapshots(shopDomain: string, accessToken: string): Promise<ActiveSubscriptionSnapshot[]> {

@@ -60,6 +60,9 @@ export declare class BillingService {
     private fetchAppSubscriptionStatusByGid;
     cancelSubscription(shopDomain: string): Promise<CancelSubscriptionResult>;
     getActiveSubscriptionInfo(shopDomain: string): Promise<ActiveSubscriptionInfo | null>;
+    fetchBillingPeriodEndForShop(shopDomain: string): Promise<string | null>;
+    private toAppSubscriptionGid;
+    private fetchCurrentPeriodEndBySubscriptionGid;
     private getActiveSubscriptionSnapshots;
     private pickPreferredActiveSubscription;
     private resolvePlanFromSnapshot;

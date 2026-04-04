@@ -38,7 +38,7 @@ export class RootController {
       JSON.stringify({
         status: 'ok',
         app: 'Conversion Optimizer',
-        buildMarker: 'BUILD_MARKER_2026-04-02_POLISH_v1',
+        buildMarker: 'BUILD_MARKER_2026-04-02_EXPIRY_BANNER_v1',
       }),
     );
   }
@@ -323,6 +323,21 @@ export class RootController {
     if (!activeUntilIso) {
       activeUntilIso = this.shops.getBillingPeriodEnd(existing) ?? '';
     }
+    // App Store 1.2.2: always surface period end when we know the shop has a paid plan but ISO is missing
+    // (common right after reinstall if list query omitted currentPeriodEnd or sync errored silently).
+    if (!activeUntilIso.trim() && hasPlan && !billingCancelledPending && existing.recurringChargeId?.trim()) {
+      try {
+        const iso = await this.billing.fetchBillingPeriodEndForShop(normalized);
+        if (iso?.trim()) {
+          activeUntilIso = iso.trim();
+          await this.shops.mergeBillingPeriodEndIso(normalized, iso.trim());
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[Root] Billing period end backfill:', e instanceof Error ? e.message : String(e));
+        }
+      }
+    }
     const cancelledPlanFromState = cancelledPlanLabel || this.shops.getCancelledPlanLabel(existing) || '';
     if (cancelledPlanFromState.trim()) {
       currentPlanLabel = cancelledPlanFromState;
@@ -480,11 +495,11 @@ export class RootController {
     const activeUntilBanner = activeUntilIso
       ? billingCancelledPending
         ? `<div class="banner banner-neutral"><p class="banner-title">Subscription status</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription is cancelled: there will be no further charges for this plan. You retain full app access through <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You may choose a new plan below at any time.</p></div>`
-        : `<div class="banner banner-neutral"><p class="banner-title">Current billing period</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan remains active until <strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong>. You can change plans anytime from this page without contacting support.</p></div>`
+        : `<div class="banner banner-neutral banner-plan-expiry"><p class="banner-title">Paid plan — current period ends</p><p class="banner-body"><strong>${this.escapeHtml(this.formatDate(activeUntilIso))}</strong> — Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription remains active through this date (we load it from Shopify, including after you reinstall the app). You can change plans anytime below.</p></div>`
       : '';
     const periodEndFallbackBanner =
-      hasPlan && !activeUntilIso && !isFreeBeta
-        ? `<div class="banner banner-neutral"><p class="banner-title">Active plan</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> subscription is active. To see the exact renewal date, open <strong>Settings → Plan and permissions</strong> in Shopify Admin and choose <strong>Billing</strong>.</p></div>`
+      hasPlan && !activeUntilIso?.trim() && !isFreeBeta
+        ? `<div class="banner banner-warn"><p class="banner-title">Active subscription</p><p class="banner-body">Your <strong>${this.escapeHtml(periodPlanLabel)}</strong> plan is active. We could not load the exact renewal date from Shopify on this load. Open <strong>Settings → Plan and permissions → Billing</strong> in Shopify Admin to see when your current period ends, or refresh this page.</p></div>`
         : '';
     const billingCard = hasAccess
       ? isFreeBeta
@@ -541,6 +556,7 @@ export class RootController {
     .banner-error{background:#fff0ed;border:1px solid #fca69d;color:#7a1a0e}
     .banner-info{background:#eef6ff;border:1px solid #b8d8ff;color:#1e4f8f}
     .banner-neutral{background:#f5f7fa;border:1px solid #d8dee7;color:#334155}
+    .banner-warn{background:#fffbeb;border:1px solid #fcd34d;color:#78350f}
     .banner-title{font-weight:700;margin:0 0 4px}
     .banner-body{margin:0;line-height:1.5}
     .hero-block{margin:0 0 20px;padding:18px 20px;background:#fff;border-radius:10px;border:1px solid #e1e3e5}

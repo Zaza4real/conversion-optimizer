@@ -30,6 +30,7 @@ export declare class ShopsService {
     getCancelledPlanLabel(shop: Shop): string | null;
     repairCancelledPlanLabel(domain: string, label: string): Promise<void>;
     getBillingPeriodEnd(shop: Shop): string | null;
+    mergeBillingPeriodEndIso(domain: string, iso: string): Promise<void>;
     findByRecurringChargeId(chargeId: string): Promise<Shop | null>;
     deleteByDomain(domain: string): Promise<boolean>;
     private normalizeDomain;

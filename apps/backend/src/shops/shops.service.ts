@@ -224,6 +224,15 @@ export class ShopsService {
     return typeof raw === 'string' && raw.trim() ? raw : null;
   }
 
+  /** Merge period end into settings without touching plan, grace, or tokens (reinstall / banner backfill). */
+  async mergeBillingPeriodEndIso(domain: string, iso: string): Promise<void> {
+    const shop = await this.findByDomain(this.normalizeDomain(domain));
+    if (!shop || !iso?.trim()) return;
+    shop.settings = { ...(shop.settings ?? {}), billingPeriodEndIso: iso.trim() };
+    shop.updatedAt = new Date();
+    await this.shopRepo.save(shop);
+  }
+
   async findByRecurringChargeId(chargeId: string): Promise<Shop | null> {
     return this.shopRepo.findOne({
       where: { recurringChargeId: String(chargeId) },

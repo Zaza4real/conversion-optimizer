@@ -207,6 +207,14 @@ let ShopsService = class ShopsService {
         const raw = (shop.settings ?? {})['billingPeriodEndIso'];
         return typeof raw === 'string' && raw.trim() ? raw : null;
     }
+    async mergeBillingPeriodEndIso(domain, iso) {
+        const shop = await this.findByDomain(this.normalizeDomain(domain));
+        if (!shop || !iso?.trim())
+            return;
+        shop.settings = { ...(shop.settings ?? {}), billingPeriodEndIso: iso.trim() };
+        shop.updatedAt = new Date();
+        await this.shopRepo.save(shop);
+    }
     async findByRecurringChargeId(chargeId) {
         return this.shopRepo.findOne({
             where: { recurringChargeId: String(chargeId) },
